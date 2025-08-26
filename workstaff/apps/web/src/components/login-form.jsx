@@ -26,7 +26,7 @@ export function LoginForm({ className, ...props }) {
               <div className="text-center text-sm">
                 No tienes una cuenta?{" "}
                 <a
-                  href="#"
+                  href="/signup"
                   className="text-red-500 hover:text-red-400 underline"
                 >
                   Regístrate
@@ -103,7 +103,7 @@ export function LoginForm({ className, ...props }) {
           </div>
         </form>
         <div className="text-muted-foreground text-center text-xs text-balance *:[a]:underline *:[a]:underline-offset-4 mt-7">
-          Al hacer click en continuar, aceptas nuestros{" "}
+          Al hacer click en Continuar, aceptas nuestros{" "}
           <a href="#" className="text-red-500 hover:text-red-400">
             Términos de servicio
           </a>{" "}
