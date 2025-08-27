@@ -30,6 +30,7 @@ model CompanyProfile {
   user User @relation(fields: [userId], references: [id])
   userId String @unique
   name String
+  cif String
   contactInfo String
   jobs Job[]
   contracts Contract[]

@@ -8,7 +8,7 @@ app.use(cors());
 
 app.use(express.json());
 
-app.use("/api/test", myRouter)
+app.use("/api/auth", myRouter)
 
 const PORT = process.env.PORT ?? 1234;
 

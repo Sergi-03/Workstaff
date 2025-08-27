@@ -1,11 +1,25 @@
-import Image from "next/image";
+"use client";
 
+import Image from "next/image";
+import Link from "next/link";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+const loginSchema = z.object({
+  email: z.string().email("Correo inválido"),
+  password: z.string().min(6, "La contraseña debe tener mínimo 6 caracteres"),
+});
+
 export function LoginForm({ className, ...props }) {
+  const form = useForm({
+    resolver: zodResolver(loginSchema),
+  });
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <div className={`animate-fade-in-up`}>
@@ -25,12 +39,12 @@ export function LoginForm({ className, ...props }) {
               <h1 className="text-xl font-bold">Bienvenido a Workstaff</h1>
               <div className="text-center text-sm">
                 No tienes una cuenta?{" "}
-                <a
+                <Link
                   href="/signup"
                   className="text-red-500 hover:text-red-400 underline"
                 >
                   Regístrate
-                </a>
+                </Link>
               </div>
             </div>
             <div className="flex flex-col gap-6">
@@ -41,24 +55,36 @@ export function LoginForm({ className, ...props }) {
                   type="email"
                   placeholder="m@example.com"
                   required
+                  {...form.register("email")}
                 />
+                {form.formState.errors.email && (
+                  <p className="text-red-500 text-sm">
+                    {form.formState.errors.email.message}
+                  </p>
+                )}
               </div>
               <div className="grid gap-3">
                 <div className="flex items-center">
                   <Label htmlFor="password">Contraseña</Label>
-                  <a
+                  <Link
                     href="#"
                     className="ml-auto text-sm text-red-500 hover:text-red-400 underline-offset-2 hover:underline"
                   >
                     Has olvidado tu contraseña?
-                  </a>
+                  </Link>
                 </div>
                 <Input
                   className="focus:border-red-600"
                   id="password"
                   type="password"
                   required
+                  {...form.register("password")}
                 />
+                {form.formState.errors.password && (
+                  <p className="text-red-500 text-sm">
+                    {form.formState.errors.password.message}
+                  </p>
+                )}
               </div>
               <Button
                 type="submit"
@@ -104,13 +130,13 @@ export function LoginForm({ className, ...props }) {
         </form>
         <div className="text-muted-foreground text-center text-xs text-balance *:[a]:underline *:[a]:underline-offset-4 mt-7">
           Al hacer click en Continuar, aceptas nuestros{" "}
-          <a href="#" className="text-red-500 hover:text-red-400">
+          <Link href="#" className="text-red-500 hover:text-red-400">
             Términos de servicio
-          </a>{" "}
+          </Link>{" "}
           y nuestra{" "}
-          <a href="#" className="text-red-500 hover:text-red-400">
+          <Link href="#" className="text-red-500 hover:text-red-400">
             Política de privacidad
-          </a>
+          </Link>
         </div>
       </div>
     </div>

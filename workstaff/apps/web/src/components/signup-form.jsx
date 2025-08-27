@@ -1,6 +1,10 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { User, BriefcaseBusiness } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -8,8 +12,80 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+const workerSchema = z.object({
+  fullname: z
+    .string()
+    .min(5, "El nombre es obligatorio")
+    .refine((val) => val.trim().split(" ").length >= 2, {
+      message: "Debes ingresar al menos nombre y apellido",
+    }),
+  email: z.string().email("Correo inválido"),
+  password: z.string().min(6, "La contraseña debe tener mínimo 6 caracteres"),
+  photo: z
+    .any()
+    .refine((file) => file?.length === 1, "Debes subir una imagen")
+    .refine(
+      (file) => ["image/jpeg", "image/png"].includes(file?.[0]?.type),
+      "Formato no válido. Solo JPG o PNG"
+    )
+    .refine((file) => file?.[0]?.size <= 5 * 1024 * 1024, "Máximo 5MB"),
+});
+
+const companySchema = z.object({
+  companyName: z
+    .string()
+    .min(3, "El nombre de la empresa es obligatorio")
+    .refine((val) => val.trim().split(" ").length >= 2, {
+      message: "Incluye al menos dos palabras (ej: 'Panadería López')",
+    }),
+  email: z.string().email("Correo inválido"),
+  password: z.string().min(6, "La contraseña debe tener mínimo 6 caracteres"),
+  cif: z
+    .string()
+    .min(9, "El CIF/NIF debe tener al menos 9 caracteres")
+    .max(9, "El CIF/NIF no puede tener más de 9 caracteres"),
+});
+
 export function RegisterForm({ className, ...props }) {
   const [role, setRole] = useState("trabajador");
+
+  const form = useForm({
+    resolver: zodResolver(role === "trabajador" ? workerSchema : companySchema),
+  });
+
+  const onSubmit = async (data) => {
+  try {
+    const formData = new FormData();
+
+    formData.append("role", role === "trabajador" ? "WORKER" : "COMPANY");
+    formData.append("email", data.email);
+    formData.append("password", data.password);
+
+    if (role === "trabajador") {
+      formData.append("fullname", data.fullname);
+      formData.append("photo", data.photo[0]); // archivo
+    } else {
+      formData.append("companyName", data.companyName);
+      formData.append("cif", data.cif);
+    }
+
+    const res = await fetch("https://ubiquitous-space-guide-q79wrjrgj4vvh4pq-1234.app.github.dev/api/auth/register", {
+      method: "POST",
+      body: formData,
+    });
+
+    const result = await res.json();
+
+    if (!res.ok) throw new Error(result.error || "Error al registrar usuario");
+
+    alert(result.message || "Usuario registrado correctamente!");
+    form.reset();
+  } catch (err) {
+    console.error(err);
+    alert("Error: " + err.message);
+  }
+};
+
 
   return (
     <div
@@ -17,7 +93,10 @@ export function RegisterForm({ className, ...props }) {
       {...props}
     >
       <div className="animate-fade-in-up flex flex-col gap-6">
-        <form className="flex flex-col gap-6">
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="flex flex-col gap-6"
+        >
           <div className="flex flex-col items-center gap-2">
             <Image
               src="/logo.png"
@@ -61,7 +140,13 @@ export function RegisterForm({ className, ...props }) {
                     type="text"
                     placeholder="Juan Pérez García"
                     required
+                    {...form.register("fullname")}
                   />
+                  {form.formState.errors.fullname && (
+                    <p className="text-red-500 text-sm">
+                      {form.formState.errors.fullname.message}
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid gap-3">
@@ -71,17 +156,43 @@ export function RegisterForm({ className, ...props }) {
                     type="email"
                     placeholder="correo@ejemplo.com"
                     required
+                    {...form.register("email")}
                   />
+                  {form.formState.errors.email && (
+                    <p className="text-red-500 text-sm">
+                      {form.formState.errors.email.message}
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid gap-3">
                   <Label htmlFor="password">Contraseña</Label>
-                  <Input id="password" type="password" required />
+                  <Input
+                    id="password"
+                    type="password"
+                    required
+                    {...form.register("password")}
+                  />
+                  {form.formState.errors.password && (
+                    <p className="text-red-500 text-sm">
+                      {form.formState.errors.password.message}
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid gap-3">
                   <Label htmlFor="photo">Foto / DNI</Label>
-                  <Input id="photo" type="file" accept="image/*" />
+                  <Input
+                    id="photo"
+                    type="file"
+                    accept="image/*"
+                    {...form.register("photo")}
+                  />
+                  {form.formState.errors.photo && (
+                    <p className="text-red-500 text-sm">
+                      {form.formState.errors.photo.message}
+                    </p>
+                  )}
                 </div>
               </>
             )}
@@ -95,7 +206,13 @@ export function RegisterForm({ className, ...props }) {
                     type="text"
                     placeholder="Mi empresa S.L."
                     required
+                    {...form.register("companyName")}
                   />
+                  {form.formState.errors.companyName && (
+                    <p className="text-red-500 text-sm">
+                      {form.formState.errors.companyName.message}
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid gap-3">
@@ -105,7 +222,13 @@ export function RegisterForm({ className, ...props }) {
                     type="text"
                     placeholder="B12345678"
                     required
+                    {...form.register("cif")}
                   />
+                  {form.formState.errors.cif && (
+                    <p className="text-red-500 text-sm">
+                      {form.formState.errors.cif.message}
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid gap-3">
@@ -115,12 +238,28 @@ export function RegisterForm({ className, ...props }) {
                     type="email"
                     placeholder="contacto@empresa.com"
                     required
+                    {...form.register("email")}
                   />
+                  {form.formState.errors.email && (
+                    <p className="text-red-500 text-sm">
+                      {form.formState.errors.email.message}
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid gap-3">
                   <Label htmlFor="password">Contraseña</Label>
-                  <Input id="password" type="password" required />
+                  <Input
+                    id="password"
+                    type="password"
+                    required
+                    {...form.register("password")}
+                  />
+                  {form.formState.errors.password && (
+                    <p className="text-red-500 text-sm">
+                      {form.formState.errors.password.message}
+                    </p>
+                  )}
                 </div>
               </>
             )}
@@ -133,13 +272,13 @@ export function RegisterForm({ className, ...props }) {
             </Button>
             <div className="text-muted-foreground text-center text-xs text-balance *:[a]:underline *:[a]:underline-offset-4 -mt-4">
               Al hacer click en Crear cuenta, aceptas nuestros{" "}
-              <a href="#" className="text-red-500 hover:text-red-400">
+              <Link href="#" className="text-red-500 hover:text-red-400">
                 Términos de servicio
-              </a>{" "}
+              </Link>{" "}
               y nuestra{" "}
-              <a href="#" className="text-red-500 hover:text-red-400">
+              <Link href="#" className="text-red-500 hover:text-red-400">
                 Política de privacidad
-              </a>
+              </Link>
             </div>
           </div>
         </form>
