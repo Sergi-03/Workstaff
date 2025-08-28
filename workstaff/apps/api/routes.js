@@ -16,11 +16,11 @@ myRouter.post("/register", upload.single("photo"), async (req, res) => {
       return res.status(400).json({ error: "Faltan datos obligatorios" });
     }
 
-    const { data: authData, error: authError } =
-      await supabase.auth.admin.createUser({
-        email,
-        password,
-      });
+    
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+    });
 
     if (authError || !authData.user) {
       console.error("Error en Supabase Auth:", authError);
@@ -31,8 +31,8 @@ myRouter.post("/register", upload.single("photo"), async (req, res) => {
 
     const userId = authData.user.id;
 
+    
     let photoUrl = null;
-
     if (role === "WORKER") {
       if (!file)
         return res.status(400).json({ error: "Debes subir una foto/DNI" });
@@ -61,45 +61,76 @@ myRouter.post("/register", upload.single("photo"), async (req, res) => {
       photoUrl = signedUrlData.signedUrl;
     }
 
-    if (role === "WORKER") {
-      await prisma.user.create({
-        data: {
-          id: userId,
-          email,
-          password,
-          role,
-          workerProfile: {
-            create: {
-              fullname,
-              photoUrl,
-              idPhotoUrl: photoUrl,
-            },
-          },
-        },
-      });
-    } else if (role === "COMPANY") {
-      await prisma.user.create({
-        data: {
-          id: userId,
-          email,
-          password,
-          role,
-          companyProfile: {
-            create: {
-              name: companyName,
-              contactInfo: email,
-              cif,
-            },
-          },
-        },
-      });
-    }
+    
+    const userData = {
+      id: userId,
+      email,
+      role,
+      workerProfile:
+        role === "WORKER"
+          ? { create: { fullname, photoUrl, idPhotoUrl: photoUrl } }
+          : undefined,
+      companyProfile:
+        role === "COMPANY"
+          ? { create: { name: companyName, contactInfo: email, cif } }
+          : undefined,
+    };
+
+    await prisma.user.create({ data: userData });
 
     return res
       .status(200)
       .json({ message: "Usuario registrado correctamente!" });
   } catch (err) {
     console.error("Error desconocido:", err);
+    return res.status(500).json({ error: err.message || "Error desconocido" });
+  }
+});
+
+myRouter.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res
+        .status(400)
+        .json({ error: "Email y contraseña son obligatorios" });
+    }
+
+    const { data: authData, error: authError } =
+      await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+    if (authError || !authData.session) {
+      console.error("Error en login Supabase:", authError);
+      return res.status(401).json({ error: "Credenciales inválidas" });
+    }
+
+    const userId = authData.user.id;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        role: true,
+        email: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "Usuario no encontrado en DB" });
+    }
+
+    return res.json({
+      message: "Login exitoso",
+      token: authData.session.access_token,
+      role: user.role,
+      userId: user.id,
+    });
+  } catch (err) {
+    console.error("Error en login:", err);
     return res.status(500).json({ error: err.message || "Error desconocido" });
   }
 });

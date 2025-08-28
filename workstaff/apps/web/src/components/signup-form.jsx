@@ -63,7 +63,7 @@ export function RegisterForm({ className, ...props }) {
 
     if (role === "trabajador") {
       formData.append("fullname", data.fullname);
-      formData.append("photo", data.photo[0]); // archivo
+      formData.append("photo", data.photo[0]);
     } else {
       formData.append("companyName", data.companyName);
       formData.append("cif", data.cif);

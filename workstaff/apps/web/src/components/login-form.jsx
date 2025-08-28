@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
+import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { cn } from "@/lib/utils";
@@ -16,14 +17,47 @@ const loginSchema = z.object({
 });
 
 export function LoginForm({ className, ...props }) {
+  const router = useRouter();
+
   const form = useForm({
     resolver: zodResolver(loginSchema),
   });
 
+  const onSubmit = async (data) => {
+    try {
+      const res = await fetch(
+        "https://ubiquitous-space-guide-q79wrjrgj4vvh4pq-1234.app.github.dev/api/auth/login",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        }
+      );
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        alert(result.error || "Error al iniciar sesión");
+        return;
+      }
+
+      if (result.role === "WORKER") {
+        router.push("/");
+      } else if (result.role === "COMPANY") {
+        router.push("/signup");
+      } else {
+        router.push("/");
+      }
+    } catch (error) {
+      console.error("Error en login:", error);
+      alert("Error al conectar con el servidor");
+    }
+  };
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <div className={`animate-fade-in-up`}>
-        <form>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
           <div className="flex flex-col gap-6">
             <div className="flex flex-col items-center gap-2">
               <div className="flex items-center justify-center rounded-md">
