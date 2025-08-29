@@ -1,11 +1,13 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/router";
 import Image from "next/image";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { toast } from "sonner";
 
 export function ResetPasswordForm({ token }) {
+  const router = useRouter();
   const [password, setPassword] = useState("");
 
   const handleSubmit = async (e) => {
@@ -32,6 +34,7 @@ export function ResetPasswordForm({ token }) {
         throw new Error(data.error || "Error al cambiar la contraseña");
 
       toast.success(data.message || "Contraseña cambiada correctamente!");
+      setTimeout(() => router.push("/login"), 2000);
     } catch (err) {
       toast.error(err.message || "Error al cambiar la contraseña");
     }

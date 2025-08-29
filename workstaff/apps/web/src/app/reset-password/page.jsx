@@ -5,8 +5,9 @@ import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import { Suspense } from "react";
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("access_token");
   const router = useRouter();
@@ -22,13 +23,18 @@ export default function ResetPasswordPage() {
           draggable={false}
           className="select-none outline-none"
         ></Image>
-        <p className="text-red-500 text-center select-none">Token inválido o expirado</p>
-        <p className="text-center text-sm text-gray-300 select-none">
-        ¿El enlace caducó? Vuelve a solicitar la recuperación de contraseña
-      </p>
-      <Button onClick={() => router.push("/forgot-password")} className="bg-red-500 hover:bg-red-600 text-white mt-5">
-      Cambiar contraseña
-      </Button>
+        <p className="text-red-500 text-center select-none">
+          Token inválido o expirado
+        </p>
+        <p className="text-center text-sm text-gray-300 select-none mt-4">
+          ¿El enlace caducó? Vuelve a solicitar la recuperación de contraseña
+        </p>
+        <Button
+          onClick={() => router.push("/forgot-password")}
+          className="bg-red-500 select-none hover:bg-red-600 text-white mt-6"
+        >
+          Solicitar enlace de recuperación
+        </Button>
       </div>
     );
   }
@@ -39,5 +45,13 @@ export default function ResetPasswordPage() {
         <ResetPasswordForm token={token} />
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div>Cargando...</div>}>
+      <ResetPasswordContent />
+    </Suspense>
   );
 }

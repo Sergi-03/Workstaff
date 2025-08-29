@@ -117,7 +117,7 @@ export function RegisterForm({ className, ...props }) {
               draggable={false}
               className="select-none outline-none"
             />
-            <h1 className="text-xl font-bold">Registro en Workstaff</h1>
+            <h1 className="text-xl font-bold select-none">Registro en Workstaff</h1>
 
             <div className="flex gap-4 mt-2">
               <Button

@@ -60,7 +60,7 @@ export function ForgotPasswordForm() {
         type="submit"
         className="w-full bg-red-500 hover:bg-red-600 text-white"
       >
-        Enviar enlace de recuperación
+      Enviar enlace de recuperación
       </Button>
     </form>
     </div>

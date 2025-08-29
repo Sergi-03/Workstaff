@@ -73,7 +73,7 @@ export function LoginForm({ className, ...props }) {
                   className="select-none outline-none"
                 ></Image>
               </div>
-              <h1 className="text-xl font-bold">Bienvenido a Workstaff</h1>
+              <h1 className="text-xl select-none font-bold">Bienvenido a Workstaff</h1>
               <div className="text-center text-sm">
                 No tienes una cuenta?{" "}
                 <Link
