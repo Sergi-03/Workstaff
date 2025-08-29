@@ -1,21 +1,18 @@
 "use client";
 import { useState } from "react";
-import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { toast } from "sonner";
 
-export function ResetPasswordForm() {
-  const searchParams = useSearchParams();
-  const access_token = searchParams.get("access_token");
+export function ResetPasswordForm({ token }) {
   const [password, setPassword] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (password.length < 6) {
-      toast.error("La contraseña debe tener al menos 6 caracteres")
+      toast.error("La contraseña debe tener al menos 6 caracteres");
       return;
     }
 
@@ -25,7 +22,7 @@ export function ResetPasswordForm() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ access_token, newPassword: password }),
+          body: JSON.stringify({ access_token: token, newPassword: password }),
         }
       );
 
@@ -34,9 +31,9 @@ export function ResetPasswordForm() {
       if (!res.ok)
         throw new Error(data.error || "Error al cambiar la contraseña");
 
-      toast.success(data.message || "Contraseña cambiada correctamente!")
+      toast.success(data.message || "Contraseña cambiada correctamente!");
     } catch (err) {
-      toast.error(err.message || "Error al cambiar la contraseña")
+      toast.error(err.message || "Error al cambiar la contraseña");
     }
   };
 
