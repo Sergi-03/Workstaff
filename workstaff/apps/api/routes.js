@@ -16,7 +16,6 @@ myRouter.post("/register", upload.single("photo"), async (req, res) => {
       return res.status(400).json({ error: "Faltan datos obligatorios" });
     }
 
-    
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -31,7 +30,6 @@ myRouter.post("/register", upload.single("photo"), async (req, res) => {
 
     const userId = authData.user.id;
 
-    
     let photoUrl = null;
     if (role === "WORKER") {
       if (!file)
@@ -61,7 +59,6 @@ myRouter.post("/register", upload.single("photo"), async (req, res) => {
       photoUrl = signedUrlData.signedUrl;
     }
 
-    
     const userData = {
       id: userId,
       email,
@@ -132,5 +129,67 @@ myRouter.post("/login", async (req, res) => {
   } catch (err) {
     console.error("Error en login:", err);
     return res.status(500).json({ error: err.message || "Error desconocido" });
+  }
+});
+
+myRouter.post("/forgot-password", async (req, res) => {
+  try {
+    const raw = (req.body?.email || "").trim();
+    if (!raw) return res.status(400).json({ error: "Email obligatorio" });
+
+    const email = raw.toLowerCase();
+
+    const exists = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+
+    if (!exists) {
+      return res.status(404).json({ error: "El correo no existe" });
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: "http://localhost:3000/reset-password",
+    });
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    return res.json({
+      message: "Revisa tu correo para restablecer la contraseña",
+    });
+  } catch (err) {
+    return res.status(500).json({ error: "Error en el servidor" });
+  }
+});
+
+myRouter.post("/reset-password", async (req, res) => {
+  try {
+    const { access_token, newPassword } = req.body;
+
+    if (!access_token || !newPassword) {
+      return res.status(400).json({ error: "Faltan datos obligatorios" });
+    }
+
+    if (newPassword.length < 6) {
+      return res
+        .status(400)
+        .json({ error: "La contraseña debe tener mínimo 6 caracteres" });
+    }
+
+    const { error } = await supabase.auth.api.updateUserByResetToken(
+      access_token,
+      { password: newPassword }
+    );
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    return res.json({ message: "Contraseña cambiada correctamente" });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Error en el servidor" });
   }
 });

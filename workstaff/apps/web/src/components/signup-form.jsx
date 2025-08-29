@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
+import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { User, BriefcaseBusiness } from "lucide-react";
@@ -11,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
 const workerSchema = z.object({
   fullname: z
@@ -47,6 +49,7 @@ const companySchema = z.object({
 });
 
 export function RegisterForm({ className, ...props }) {
+  const router = useRouter();
   const [role, setRole] = useState("trabajador");
 
   const form = useForm({
@@ -54,38 +57,46 @@ export function RegisterForm({ className, ...props }) {
   });
 
   const onSubmit = async (data) => {
-  try {
-    const formData = new FormData();
+    try {
+      const formData = new FormData();
 
-    formData.append("role", role === "trabajador" ? "WORKER" : "COMPANY");
-    formData.append("email", data.email);
-    formData.append("password", data.password);
+      formData.append("role", role === "trabajador" ? "WORKER" : "COMPANY");
+      formData.append("email", data.email);
+      formData.append("password", data.password);
 
-    if (role === "trabajador") {
-      formData.append("fullname", data.fullname);
-      formData.append("photo", data.photo[0]);
-    } else {
-      formData.append("companyName", data.companyName);
-      formData.append("cif", data.cif);
+      if (role === "trabajador") {
+        formData.append("fullname", data.fullname);
+        formData.append("photo", data.photo[0]);
+      } else {
+        formData.append("companyName", data.companyName);
+        formData.append("cif", data.cif);
+      }
+
+      const res = await fetch(
+        "https://ubiquitous-space-guide-q79wrjrgj4vvh4pq-1234.app.github.dev/api/auth/register",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      const result = await res.json();
+
+      if (!res.ok)
+        throw new Error(result.error || "Error al registrar usuario");
+
+      toast.success(result.message || "¡Registro completado!", {
+        description: "Revisa tu correo para verificar tu cuenta antes de iniciar sesión",
+      });
+      form.reset();
+      setTimeout(() => router.push("/login"), 2000)
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || "Error al registrar usuario", {
+        description: "Por favor revisa los datos ingresados e inténtalo nuevamente",
+      });
     }
-
-    const res = await fetch("https://ubiquitous-space-guide-q79wrjrgj4vvh4pq-1234.app.github.dev/api/auth/register", {
-      method: "POST",
-      body: formData,
-    });
-
-    const result = await res.json();
-
-    if (!res.ok) throw new Error(result.error || "Error al registrar usuario");
-
-    alert(result.message || "Usuario registrado correctamente!");
-    form.reset();
-  } catch (err) {
-    console.error(err);
-    alert("Error: " + err.message);
-  }
-};
-
+  };
 
   return (
     <div

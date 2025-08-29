@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
 const loginSchema = z.object({
   email: z.string().email("Correo inválido"),
@@ -37,9 +38,11 @@ export function LoginForm({ className, ...props }) {
       const result = await res.json();
 
       if (!res.ok) {
-        alert(result.error || "Error al iniciar sesión");
+        toast.error(result.error || "Error al iniciar sesión");
         return;
       }
+
+      toast.success("Sesión iniciada correctamente!")
 
       if (result.role === "WORKER") {
         router.push("/");
@@ -50,7 +53,7 @@ export function LoginForm({ className, ...props }) {
       }
     } catch (error) {
       console.error("Error en login:", error);
-      alert("Error al conectar con el servidor");
+      toast.error("Error al conectar con el servidor");
     }
   };
 
@@ -101,7 +104,7 @@ export function LoginForm({ className, ...props }) {
                 <div className="flex items-center">
                   <Label htmlFor="password">Contraseña</Label>
                   <Link
-                    href="#"
+                    href="/forgot-password"
                     className="ml-auto text-sm text-red-500 hover:text-red-400 underline-offset-2 hover:underline"
                   >
                     Has olvidado tu contraseña?
