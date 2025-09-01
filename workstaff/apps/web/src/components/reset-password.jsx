@@ -20,7 +20,7 @@ export function ResetPasswordForm({ token }) {
 
     try {
       const res = await fetch(
-        `https://ubiquitous-space-guide-q79wrjrgj4vvh4pq-3000.app.github.dev/api/auth/reset-password`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/reset-password`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

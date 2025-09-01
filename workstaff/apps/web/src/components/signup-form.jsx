@@ -73,7 +73,7 @@ export function RegisterForm({ className, ...props }) {
       }
 
       const res = await fetch(
-        "https://ubiquitous-space-guide-q79wrjrgj4vvh4pq-1234.app.github.dev/api/auth/register",
+        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/register`,
         {
           method: "POST",
           body: formData,

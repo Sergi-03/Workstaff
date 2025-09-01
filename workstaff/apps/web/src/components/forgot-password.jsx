@@ -13,7 +13,7 @@ export function ForgotPasswordForm() {
 
     try {
       const res = await fetch(
-        `https://ubiquitous-space-guide-q79wrjrgj4vvh4pq-1234.app.github.dev/api/auth/forgot-password`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/forgot-password`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

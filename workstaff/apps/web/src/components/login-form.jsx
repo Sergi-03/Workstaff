@@ -27,7 +27,7 @@ export function LoginForm({ className, ...props }) {
   const onSubmit = async (data) => {
     try {
       const res = await fetch(
-        "https://ubiquitous-space-guide-q79wrjrgj4vvh4pq-1234.app.github.dev/api/auth/login",
+        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
