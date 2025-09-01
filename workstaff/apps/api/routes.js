@@ -163,33 +163,3 @@ myRouter.post("/forgot-password", async (req, res) => {
     return res.status(500).json({ error: "Error en el servidor" });
   }
 });
-
-myRouter.post("/reset-password", async (req, res) => {
-  try {
-    const { access_token, newPassword } = req.body;
-
-    if (!access_token || !newPassword) {
-      return res.status(400).json({ error: "Faltan datos obligatorios" });
-    }
-
-    if (newPassword.length < 6) {
-      return res
-        .status(400)
-        .json({ error: "La contraseña debe tener mínimo 6 caracteres" });
-    }
-
-    const { error } = await supabase.auth.api.updateUserByResetToken(
-      access_token,
-      { password: newPassword }
-    );
-
-    if (error) {
-      return res.status(400).json({ error: error.message });
-    }
-
-    return res.json({ message: "Contraseña cambiada correctamente" });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Error en el servidor" });
-  }
-});

@@ -9,22 +9,21 @@ import { Suspense, useState, useEffect } from "react";
 
 function ResetPasswordContent() {
   const searchParams = useSearchParams();
-  const [token, setToken] = useState(null)
+  const [hasToken, setHasToken] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    let t = searchParams.get("access_token");
+    let token = searchParams.get("access_token");
 
-    
-    if (!t && typeof window !== "undefined") {
+    if (!token && typeof window !== "undefined") {
       const hash = new URLSearchParams(window.location.hash.substring(1));
-      t = hash.get("access_token");
+      token = hash.get("access_token");
     }
 
-    setToken(t);
+    setHasToken(!!token);
   }, [searchParams]);
 
-  if (!token) {
+  if (!hasToken) {
     return (
       <div className="bg-background flex min-h-svh flex-col items-center justify-center p-6">
         <Image
@@ -34,7 +33,7 @@ function ResetPasswordContent() {
           alt="logo workstaff"
           draggable={false}
           className="select-none outline-none"
-        ></Image>
+        />
         <p className="text-red-500 text-center select-none">
           Token inválido o expirado
         </p>
@@ -54,7 +53,7 @@ function ResetPasswordContent() {
   return (
     <div className="bg-background flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
       <div className="w-full max-w-sm">
-        <ResetPasswordForm token={token} />
+        <ResetPasswordForm />
       </div>
     </div>
   );

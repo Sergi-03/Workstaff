@@ -1,12 +1,13 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "../../../../lib/supabaseClient";
 import Image from "next/image";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { toast } from "sonner";
 
-export function ResetPasswordForm({ token }) {
+export function ResetPasswordForm() {
   const router = useRouter();
   const [password, setPassword] = useState("");
 
@@ -19,21 +20,11 @@ export function ResetPasswordForm({ token }) {
     }
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/reset-password`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ access_token: token, newPassword: password }),
-        }
-      );
+      const { error } = await supabase.auth.updateUser({ password });
 
-      const data = await res.json();
+      if (error) throw new Error(error.message);
 
-      if (!res.ok)
-        throw new Error(data.error || "Error al cambiar la contraseña");
-
-      toast.success(data.message || "Contraseña cambiada correctamente!");
+      toast.success("Contraseña cambiada correctamente!");
       setTimeout(() => router.push("/login"), 2000);
     } catch (err) {
       toast.error(err.message || "Error al cambiar la contraseña");
@@ -50,7 +41,7 @@ export function ResetPasswordForm({ token }) {
           alt="logo workstaff"
           draggable={false}
           className="select-none outline-none"
-        ></Image>
+        />
       </div>
       <Input
         type="password"
