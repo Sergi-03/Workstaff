@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { Router } from "express";
-import prisma from "../../lib/prismaClient.js";
+import prisma from "../web/src/lib/prismaClient.js";
 import { supabase } from "../api/lib/supabaseClient.js";
 import multer from "multer";
 
