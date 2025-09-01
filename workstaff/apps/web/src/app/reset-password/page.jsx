@@ -5,12 +5,24 @@ import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Suspense } from "react";
+import { Suspense, useState, useEffect } from "react";
 
 function ResetPasswordContent() {
   const searchParams = useSearchParams();
-  const token = searchParams.get("access_token");
+  const [token, setToken] = useState(null)
   const router = useRouter();
+
+  useEffect(() => {
+    let t = searchParams.get("access_token");
+
+    
+    if (!t && typeof window !== "undefined") {
+      const hash = new URLSearchParams(window.location.hash.substring(1));
+      t = hash.get("access_token");
+    }
+
+    setToken(t);
+  }, [searchParams]);
 
   if (!token) {
     return (
