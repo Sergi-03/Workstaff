@@ -2,6 +2,7 @@ import "dotenv/config";
 import { Router } from "express";
 import prisma from "./lib/prismaClient.js";
 import { supabase } from "../api/lib/supabaseClient.js";
+import { supabaseAdmin } from "./lib/supabaseAdmin.js";
 import { authMiddleware } from "./middlewares/authMiddleware.js";
 import { roleMiddleware } from "./middlewares/roleMiddleware.js";
 import multer from "multer";
@@ -18,10 +19,11 @@ myRouter.post("/register", upload.single("photo"), async (req, res) => {
       return res.status(400).json({ error: "Faltan datos obligatorios" });
     }
 
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+    const { data: authData, error: authError } =
+      await supabaseAdmin.auth.signUp({
+        email,
+        password,
+      });
 
     if (authError || !authData.user) {
       console.error("Error en Supabase Auth:", authError);
@@ -31,34 +33,29 @@ myRouter.post("/register", upload.single("photo"), async (req, res) => {
     }
 
     const userId = authData.user.id;
+    let idPhotoPath = null;
 
-    let photoUrl = null;
     if (role === "WORKER") {
-      if (!file)
+      if (!file) {
         return res.status(400).json({ error: "Debes subir una foto/DNI" });
+      }
 
       const fileExt = file.originalname.split(".").pop();
-      const fileName = `${userId}-${Date.now()}.${fileExt}`;
+      const objectPath = `${userId}/dni/photo-${Date.now()}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabaseAdmin.storage
         .from("user-documents")
-        .upload(fileName, file.buffer, { contentType: file.mimetype });
+        .upload(objectPath, file.buffer, {
+          contentType: file.mimetype,
+          upsert: true,
+        });
 
       if (uploadError) {
         console.error("Error subiendo archivo:", uploadError);
         return res.status(500).json({ error: uploadError.message });
       }
 
-      const { data: signedUrlData, error: urlError } = await supabase.storage
-        .from("user-documents")
-        .createSignedUrl(fileName, 3600);
-
-      if (urlError) {
-        console.error("Error creando signed URL:", urlError);
-        return res.status(500).json({ error: urlError.message });
-      }
-
-      photoUrl = signedUrlData.signedUrl;
+      idPhotoPath = objectPath;
     }
 
     const userData = {
@@ -67,7 +64,7 @@ myRouter.post("/register", upload.single("photo"), async (req, res) => {
       role,
       workerProfile:
         role === "WORKER"
-          ? { create: { fullname, photoUrl, idPhotoUrl: photoUrl } }
+          ? { create: { fullname, idPhotoUrl: idPhotoPath } }
           : undefined,
       companyProfile:
         role === "COMPANY"
@@ -177,16 +174,29 @@ myRouter.get(
         include: {
           user: { select: { email: true, role: true, id: true } },
           reviews: true,
-          attendances: false,
-          applications: false,
-          contracts: false,
-          courses: false,
         },
       });
 
-      if (!profile)
+      if (!profile) {
         return res.status(404).json({ error: "Perfil no encontrado" });
-      return res.json(profile);
+      }
+
+      let signedPhotoUrl = null;
+
+      if (profile.idPhotoUrl) {
+        const { data, error } = await supabaseAdmin.storage
+          .from("user-documents")
+          .createSignedUrl(profile.idPhotoUrl, 60 * 60);
+
+        if (!error) {
+          signedPhotoUrl = data.signedUrl;
+        }
+      }
+
+      return res.json({
+        ...profile,
+        photoUrl: signedPhotoUrl,
+      });
     } catch (err) {
       console.error(err);
       return res.status(500).json({ error: "Error en el servidor" });
@@ -200,13 +210,8 @@ myRouter.put(
   roleMiddleware(["WORKER"]),
   async (req, res) => {
     try {
-      const {
-        fullname,
-        experience,
-        skills, 
-        availability, 
-        certificates,
-      } = req.body;
+      const { fullname, experience, skills, availability, certificates } =
+        req.body;
 
       const parseToArray = (val) => {
         if (Array.isArray(val))
