@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { apiFetch, getAuth } from "@/lib/api";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 
-export default function WorkerProfilePage() {
+function WorkerProfileContent() {
   const router = useRouter();
   const search = useSearchParams();
   const onboarding = search.get("onboarding") === "1";
@@ -87,7 +87,7 @@ export default function WorkerProfilePage() {
               ></Image>
             </div>
             <h1 className="text-xl mb-10 select-none font-bold">
-            Completa tu perfil para comenzar a postularte a trabajos
+              Completa tu perfil para comenzar a postularte a trabajos
             </h1>
           </div>
         ) : null}
@@ -157,5 +157,13 @@ export default function WorkerProfilePage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function WorkerProfilePage() {
+  return (
+    <Suspense fallback={<div>Cargando...</div>}>
+      <WorkerProfileContent />
+    </Suspense>
   );
 }
