@@ -1,7 +1,9 @@
 import "dotenv/config";
 import { Router } from "express";
-import prisma from "../web/src/lib/prismaClient.js";
+import prisma from "./lib/prismaClient.js";
 import { supabase } from "../api/lib/supabaseClient.js";
+import { authMiddleware } from "./middlewares/authMiddleware.js";
+import { roleMiddleware } from "./middlewares/roleMiddleware.js";
 import multer from "multer";
 
 export const myRouter = Router();
@@ -163,3 +165,79 @@ myRouter.post("/forgot-password", async (req, res) => {
     return res.status(500).json({ error: "Error en el servidor" });
   }
 });
+
+myRouter.get(
+  "/worker/profile",
+  authMiddleware,
+  roleMiddleware(["WORKER"]),
+  async (req, res) => {
+    try {
+      const profile = await prisma.workerProfile.findUnique({
+        where: { userId: req.appUser.id },
+        include: {
+          user: { select: { email: true, role: true, id: true } },
+          reviews: true,
+          attendances: false,
+          applications: false,
+          contracts: false,
+          courses: false,
+        },
+      });
+
+      if (!profile)
+        return res.status(404).json({ error: "Perfil no encontrado" });
+      return res.json(profile);
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Error en el servidor" });
+    }
+  }
+);
+
+myRouter.put(
+  "/worker/profile",
+  authMiddleware,
+  roleMiddleware(["WORKER"]),
+  async (req, res) => {
+    try {
+      const {
+        fullname,
+        experience,
+        skills, 
+        availability, 
+        certificates,
+      } = req.body;
+
+      const parseToArray = (val) => {
+        if (Array.isArray(val))
+          return val.map((v) => String(v).trim()).filter(Boolean);
+        if (typeof val === "string") {
+          return val
+            .split(",")
+            .map((v) => v.trim())
+            .filter(Boolean);
+        }
+        return undefined;
+      };
+
+      const data = {};
+      if (fullname !== undefined) data.fullname = fullname;
+      if (experience !== undefined) data.experience = experience;
+      if (skills !== undefined) data.skills = parseToArray(skills);
+      if (availability !== undefined)
+        data.availability = parseToArray(availability);
+      if (certificates !== undefined)
+        data.certificates = parseToArray(certificates);
+
+      const updated = await prisma.workerProfile.update({
+        where: { userId: req.appUser.id },
+        data,
+      });
+
+      return res.json({ message: "Perfil actualizado", profile: updated });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Error en el servidor" });
+    }
+  }
+);

@@ -42,12 +42,16 @@ export function LoginForm({ className, ...props }) {
         return;
       }
 
-      toast.success("Sesión iniciada correctamente!")
+      localStorage.setItem("access_token", result.token);
+      localStorage.setItem("role", result.role);
+      localStorage.setItem("userId", result.user?.id);
+
+      toast.success("Sesión iniciada correctamente!");
 
       if (result.role === "WORKER") {
-        router.push("/");
+        setTimeout(() => router.push("/worker/profile?onboarding=1"), 1000);
       } else if (result.role === "COMPANY") {
-        router.push("/signup");
+        setTimeout(() => router.push("/company/profile?onboarding=1"), 1000);
       } else {
         router.push("/");
       }
@@ -73,7 +77,9 @@ export function LoginForm({ className, ...props }) {
                   className="select-none outline-none"
                 ></Image>
               </div>
-              <h1 className="text-xl select-none font-bold">Bienvenido a Workstaff</h1>
+              <h1 className="text-xl select-none font-bold">
+                Bienvenido a Workstaff
+              </h1>
               <div className="text-center text-sm">
                 No tienes una cuenta?{" "}
                 <Link
