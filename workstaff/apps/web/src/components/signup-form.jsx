@@ -23,14 +23,10 @@ const workerSchema = z.object({
     }),
   email: z.string().email("Correo inválido"),
   password: z.string().min(6, "La contraseña debe tener mínimo 6 caracteres"),
-  photo: z
+  profilePhoto: z.any().optional(),
+  dniPhoto: z
     .any()
-    .refine((file) => file?.length === 1, "Debes subir una imagen")
-    .refine(
-      (file) => ["image/jpeg", "image/png"].includes(file?.[0]?.type),
-      "Formato no válido. Solo JPG o PNG"
-    )
-    .refine((file) => file?.[0]?.size <= 5 * 1024 * 1024, "Máximo 5MB"),
+    .refine((file) => file?.length === 1, "Debes subir una imagen de DNI"),
 });
 
 const companySchema = z.object({
@@ -66,7 +62,14 @@ export function RegisterForm({ className, ...props }) {
 
       if (role === "trabajador") {
         formData.append("fullname", data.fullname);
-        formData.append("photo", data.photo[0]);
+
+        if (data.profilePhoto?.[0]) {
+          formData.append("profilePhoto", data.profilePhoto[0]);
+        }
+
+        if (data.dniPhoto?.[0]) {
+          formData.append("dniPhoto", data.dniPhoto[0]);
+        }
       } else {
         formData.append("companyName", data.companyName);
         formData.append("cif", data.cif);
@@ -86,14 +89,16 @@ export function RegisterForm({ className, ...props }) {
         throw new Error(result.error || "Error al registrar usuario");
 
       toast.success(result.message || "¡Registro completado!", {
-        description: "Revisa tu correo para verificar tu cuenta antes de iniciar sesión",
+        description:
+          "Revisa tu correo para verificar tu cuenta antes de iniciar sesión",
       });
       form.reset();
-      setTimeout(() => router.push("/login"), 2000)
+      setTimeout(() => router.push("/login"), 2000);
     } catch (err) {
       console.error(err);
       toast.error(err.message || "Error al registrar usuario", {
-        description: "Por favor revisa los datos ingresados e inténtalo nuevamente",
+        description:
+          "Por favor revisa los datos ingresados e inténtalo nuevamente",
       });
     }
   };
@@ -117,7 +122,9 @@ export function RegisterForm({ className, ...props }) {
               draggable={false}
               className="select-none outline-none"
             />
-            <h1 className="text-xl font-bold select-none">Registro en Workstaff</h1>
+            <h1 className="text-xl font-bold select-none">
+              Registro en Workstaff
+            </h1>
 
             <div className="flex gap-4 mt-2">
               <Button
@@ -192,16 +199,31 @@ export function RegisterForm({ className, ...props }) {
                 </div>
 
                 <div className="grid gap-3">
-                  <Label htmlFor="photo">Foto / DNI</Label>
+                  <Label htmlFor="profilePhoto">Foto de perfil</Label>
                   <Input
-                    id="photo"
+                    id="profilePhoto"
                     type="file"
                     accept="image/*"
-                    {...form.register("photo")}
+                    {...form.register("profilePhoto")}
                   />
-                  {form.formState.errors.photo && (
+                  {form.formState.errors.profilePhoto && (
                     <p className="text-red-500 text-sm">
-                      {form.formState.errors.photo.message}
+                      {form.formState.errors.profilePhoto.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid gap-3">
+                  <Label htmlFor="dniPhoto">Foto DNI</Label>
+                  <Input
+                    id="dniPhoto"
+                    type="file"
+                    accept="image/*"
+                    {...form.register("dniPhoto")}
+                  />
+                  {form.formState.errors.dniPhoto && (
+                    <p className="text-red-500 text-sm">
+                      {form.formState.errors.dniPhoto.message}
                     </p>
                   )}
                 </div>

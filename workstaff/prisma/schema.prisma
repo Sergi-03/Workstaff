@@ -41,10 +41,14 @@ model WorkerProfile {
   userId String @unique
   fullname String
   photoUrl String?
-  idPhotoUrl String       
+  idPhotoUrl String     
   verified Boolean @default(false) 
   certificates String[]
   experience String?
+  rolesExperience Json?
+  workHistory Json?
+  location String?
+  serviceTypes String[]
   skills String[]
   availability String[]
   reviews Review[]
