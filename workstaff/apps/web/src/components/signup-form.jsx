@@ -88,12 +88,10 @@ export function RegisterForm({ className, ...props }) {
       if (!res.ok)
         throw new Error(result.error || "Error al registrar usuario");
 
-      toast.success(result.message || "¡Registro completado!", {
-        description:
-          "Revisa tu correo para verificar tu cuenta antes de iniciar sesión",
-      });
+      toast.success(result.message || "¡Registro completado!");
       form.reset();
-      setTimeout(() => router.push("/login"), 2000);
+      localStorage.setItem("signup_email", data.email);
+      setTimeout(() => router.push("/email-verification"), 2000);
     } catch (err) {
       console.error(err);
       toast.error(err.message || "Error al registrar usuario", {
