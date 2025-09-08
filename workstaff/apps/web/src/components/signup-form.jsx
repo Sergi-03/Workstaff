@@ -42,6 +42,7 @@ const companySchema = z.object({
     .string()
     .min(9, "El CIF/NIF debe tener al menos 9 caracteres")
     .max(9, "El CIF/NIF no puede tener más de 9 caracteres"),
+  logo: z.any().optional(),
 });
 
 export function RegisterForm({ className, ...props }) {
@@ -73,6 +74,10 @@ export function RegisterForm({ className, ...props }) {
       } else {
         formData.append("companyName", data.companyName);
         formData.append("cif", data.cif);
+
+        if(data.logo?.[0]) {
+          formData.append("logo", data.logo[0])
+        }
       }
 
       const res = await fetch(
@@ -242,6 +247,21 @@ export function RegisterForm({ className, ...props }) {
                   {form.formState.errors.companyName && (
                     <p className="text-red-500 text-sm">
                       {form.formState.errors.companyName.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid gap-3">
+                  <Label htmlFor="logo">Logo de la empresa</Label>
+                  <Input
+                    id="logo"
+                    type="file"
+                    accept="image/*"
+                    {...form.register("logo")}
+                  />
+                  {form.formState.errors.logo && (
+                    <p className="text-red-500 text-sm">
+                      {form.formState.errors.logo.message}
                     </p>
                   )}
                 </div>

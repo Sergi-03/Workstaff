@@ -231,7 +231,7 @@ function WorkerProfileContent() {
         <div>
           <label className="block text-sm mb-1">Progreso del perfil</label>
           <Progress value={progress} className="h-2" />
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-muted-foreground mt-1">
             {Math.round(progress)}% completo
           </p>
         </div>
@@ -267,7 +267,9 @@ function WorkerProfileContent() {
         </div>
 
         <div>
-          <label className="block text-sm mb-1">Foto de DNI</label>
+          <label className="block text-sm mb-1">
+            Foto de DNI <span className="text-red-500">*</span>{" "}
+          </label>
           {idPhotoUrl ? (
             <img
               src={idPhotoUrl}
@@ -308,7 +310,9 @@ function WorkerProfileContent() {
 
         <form onSubmit={onSave} className="space-y-4">
           <div>
-            <label className="block text-sm mb-1">Nombre completo</label>
+            <label className="block text-sm mb-1">
+              Nombre completo <span className="text-red-500">*</span>{" "}
+            </label>
             <Input
               value={fullname}
               onChange={(e) => setFullname(e.target.value)}

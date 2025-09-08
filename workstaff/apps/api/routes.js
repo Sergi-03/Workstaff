@@ -15,12 +15,14 @@ myRouter.post(
   upload.fields([
     { name: "profilePhoto", maxCount: 1 },
     { name: "dniPhoto", maxCount: 1 },
+    { name: "logo", maxCount: 1 },
   ]),
   async (req, res) => {
     try {
       const { role, email, password, fullname, companyName, cif } = req.body;
       const profileFile = req.files["profilePhoto"]?.[0];
       const dniFile = req.files["dniPhoto"]?.[0];
+      const logoFile = req.files["logo"]?.[0];
 
       if (!email || !password || !role) {
         return res.status(400).json({ error: "Faltan datos obligatorios" });
@@ -40,6 +42,32 @@ myRouter.post(
       const timestamp = Date.now();
       let profilePhotoUrl = null;
       let dniPhotoUrl = null;
+      let logoUrl = null;
+
+      if (logoFile) {
+        const logoExt = logoFile.originalname.split(".").pop();
+        const logoId = `logo-${Date.now()}-${Math.random()
+          .toString(36)
+          .substr(2, 9)}`;
+        const logoPath = `${userId}/logo/${logoId}.${logoExt}`;
+
+        const { error: uploadError } = await supabaseAdmin.storage
+          .from("user-documents")
+          .upload(logoPath, logoFile.buffer, {
+            contentType: logoFile.mimetype,
+            upsert: true,
+          });
+
+        if (uploadError) throw new Error(uploadError.message);
+
+        const { data: signedUrlData, error: urlError } =
+          await supabaseAdmin.storage
+            .from("user-documents")
+            .createSignedUrl(logoPath, 60 * 60 * 24 * 365 * 10);
+
+        if (urlError) throw new Error(urlError.message);
+        logoUrl = signedUrlData.signedUrl;
+      }
 
       const profileId = `profile-${timestamp}-${Math.random()
         .toString(36)
@@ -108,7 +136,9 @@ myRouter.post(
             : undefined,
         companyProfile:
           role === "COMPANY"
-            ? { create: { name: companyName, contactInfo: email, cif } }
+            ? {
+                create: { name: companyName, contactInfo: email, cif, logoUrl },
+              }
             : undefined,
       };
 
@@ -419,6 +449,135 @@ myRouter.put(
       return res.json({
         message: "Foto de DNI actualizada",
         profile: updated,
+      });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Error en el servidor" });
+    }
+  }
+);
+
+myRouter.get(
+  "/company/profile",
+  authMiddleware,
+  roleMiddleware(["COMPANY"]),
+  async (req, res) => {
+    try {
+      const profile = await prisma.companyProfile.findUnique({
+        where: { userId: req.appUser.id },
+        include: {
+          user: { select: { email: true, role: true, id: true } },
+          jobs: true,
+          contracts: true,
+        },
+      });
+
+      if (!profile) {
+        return res
+          .status(404)
+          .json({ error: "Perfil de empresa no encontrado" });
+      }
+
+      let signedLogoUrl = null;
+
+      const isFullUrl = (str) =>
+        str && (str.startsWith("http") || str.startsWith("https"));
+
+      if (profile.logoUrl) {
+        if (isFullUrl(profile.logoUrl)) {
+          signedLogoUrl = profile.logoUrl;
+        } else {
+          const { data, error } = await supabaseAdmin.storage
+            .from("user-documents")
+            .createSignedUrl(profile.logoUrl, 60 * 60 * 24 * 365 * 10);
+
+          if (!error) signedLogoUrl = data.signedUrl;
+        }
+      }
+
+      return res.json({
+        ...profile,
+        logoUrl: signedLogoUrl,
+      });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Error en el servidor" });
+    }
+  }
+);
+
+myRouter.put(
+  "/company/profile",
+  authMiddleware,
+  roleMiddleware(["COMPANY"]),
+  async (req, res) => {
+    try {
+      const { name, cif, contactInfo } = req.body;
+
+      const updatedProfile = await prisma.companyProfile.update({
+        where: { userId: req.appUser.id },
+        data: {
+          name,
+          cif,
+          contactInfo,
+        },
+      });
+
+      return res.json(updatedProfile);
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Error en el servidor" });
+    }
+  }
+);
+
+myRouter.put(
+  "/company/profile/logo",
+  authMiddleware,
+  roleMiddleware(["COMPANY"]),
+  upload.single("file"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No se envió ningún archivo" });
+      }
+
+      const timestamp = Date.now();
+      const logoId = `logo-update-${timestamp}-${Math.random()
+        .toString(36)
+        .substr(2, 9)}`;
+      const fileExt = req.file.originalname.split(".").pop();
+      const filePath = `${req.appUser.id}/logo/${logoId}.${fileExt}`;
+
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from("user-documents")
+        .upload(filePath, req.file.buffer, {
+          contentType: req.file.mimetype,
+          upsert: true,
+        });
+
+      if (uploadError) {
+        console.error(uploadError);
+        return res.status(500).json({ error: "Error al subir el logo" });
+      }
+
+      const { data: signedUrlData, error: urlError } =
+        await supabaseAdmin.storage
+          .from("user-documents")
+          .createSignedUrl(filePath, 60 * 60 * 24 * 365 * 10);
+
+      if (urlError) {
+        return res.status(500).json({ error: urlError.message });
+      }
+
+      await prisma.companyProfile.update({
+        where: { userId: req.appUser.id },
+        data: { logoUrl: signedUrlData.signedUrl },
+      });
+
+      return res.json({
+        message: "Logo actualizado correctamente",
+        logoUrl: signedUrlData.signedUrl,
       });
     } catch (err) {
       console.error(err);
