@@ -48,7 +48,12 @@ function CompanyProfileContent() {
         setContactInfo(data.contactInfo || "");
         setLogoUrl(data.logoUrl || "");
       } catch (err) {
+        if(err.message.includes("Token")) {
+          router.replace("/login")
+        }
+        else {
         toast.error(err.message || "Error cargando perfil");
+        }
       }
     })();
   }, [router]);

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { useState } from "react";
 
 const loginSchema = z.object({
   email: z.string().email("Correo inválido"),
@@ -19,12 +20,14 @@ const loginSchema = z.object({
 
 export function LoginForm({ className, ...props }) {
   const router = useRouter();
+  const [uploading, setUploading] = useState(false)
 
   const form = useForm({
     resolver: zodResolver(loginSchema),
   });
 
   const onSubmit = async (data) => {
+    setUploading(true);
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`,
@@ -58,6 +61,8 @@ export function LoginForm({ className, ...props }) {
     } catch (error) {
       console.error("Error en login:", error);
       toast.error("Error al conectar con el servidor");
+    } finally{
+      setUploading(false);
     }
   };
 
@@ -132,8 +137,9 @@ export function LoginForm({ className, ...props }) {
               <Button
                 type="submit"
                 className="w-full bg-red-500 hover:bg-red-600 text-white"
+                disabled={uploading}
               >
-                Iniciar sesión
+                {uploading ? "Iniciando sesión..." : "Iniciar sesión"}
               </Button>
             </div>
             <div className="after:border-border relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t">

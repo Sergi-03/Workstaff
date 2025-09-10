@@ -47,6 +47,7 @@ const companySchema = z.object({
 
 export function RegisterForm({ className, ...props }) {
   const router = useRouter();
+  const [uploading, setUploading] = useState(false)
   const [role, setRole] = useState("trabajador");
 
   const form = useForm({
@@ -54,6 +55,7 @@ export function RegisterForm({ className, ...props }) {
   });
 
   const onSubmit = async (data) => {
+    setUploading(true);
     try {
       const formData = new FormData();
 
@@ -103,6 +105,8 @@ export function RegisterForm({ className, ...props }) {
         description:
           "Por favor revisa los datos ingresados e inténtalo nuevamente",
       });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -317,9 +321,10 @@ export function RegisterForm({ className, ...props }) {
 
             <Button
               type="submit"
+              disabled={uploading}
               className="w-full bg-red-500 hover:bg-red-600 text-white"
             >
-              Crear cuenta
+              {uploading ? "Creando cuenta..." : "Crear cuenta"}
             </Button>
             <div className="text-muted-foreground text-center text-xs text-balance *:[a]:underline *:[a]:underline-offset-4 -mt-4">
               Al hacer click en Crear cuenta, aceptas nuestros{" "}
