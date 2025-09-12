@@ -20,7 +20,7 @@ const loginSchema = z.object({
 
 export function LoginForm({ className, ...props }) {
   const router = useRouter();
-  const [uploading, setUploading] = useState(false)
+  const [uploading, setUploading] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(loginSchema),
@@ -48,6 +48,19 @@ export function LoginForm({ className, ...props }) {
       localStorage.setItem("access_token", result.token);
       localStorage.setItem("role", result.role);
       localStorage.setItem("userId", result.user?.id);
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          fullname: result.user?.fullname || "Usuario",
+          name: result.user?.name || "Usuario",
+          cif: result.user?.cif || "Cif",
+          email: result.user?.contactInfo || "Email",
+          photoUrl: result.user?.photoUrl || "",
+          idPhotoUrl: result.user?.idPhotoUrl || "Id",
+          logoUrl: result.user?.logoUrl || "",
+          role: result.role || "",
+        })
+      );
 
       toast.success("Sesión iniciada correctamente!");
 
@@ -61,7 +74,7 @@ export function LoginForm({ className, ...props }) {
     } catch (error) {
       console.error("Error en login:", error);
       toast.error("Error al conectar con el servidor");
-    } finally{
+    } finally {
       setUploading(false);
     }
   };

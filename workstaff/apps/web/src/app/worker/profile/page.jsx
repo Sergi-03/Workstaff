@@ -16,14 +16,16 @@ function WorkerProfileContent() {
   const search = useSearchParams();
   const onboarding = search.get("onboarding") === "1";
 
-  const [profile, setProfile] = useState(null);
+  const savedUser = typeof window !== "undefined" ? localStorage.getItem("user") : null;
+  const initialUser = savedUser ? JSON.parse(savedUser) : {};
 
-  const [fullname, setFullname] = useState("");
+  const [profile, setProfile] = useState(null);
+  const [fullname, setFullname] = useState(initialUser.fullname);
   const [experience, setExperience] = useState("");
   const [skills, setSkills] = useState("");
   const [availability, setAvailability] = useState("");
   const [certificates, setCertificates] = useState("");
-  const [photoUrl, setPhotoUrl] = useState("");
+  const [photoUrl, setPhotoUrl] = useState(initialUser.photoUrl);
   const [idPhotoUrl, setIdPhotoUrl] = useState("");
 
   const [rolesExperience, setRolesExperience] = useState([]);
@@ -50,16 +52,15 @@ function WorkerProfileContent() {
 
     (async () => {
       try {
-        const data = await apiFetch("/api/auth/worker/profile", {
-          method: "GET",
-        });
+        const data = await apiFetch("/api/auth/worker/profile", { method: "GET" });
+
         setProfile(data);
-        setFullname(data.fullname || "");
+        setFullname(data.fullname || fullname);
         setExperience(data.experience || "");
         setSkills((data.skills || []).join(", "));
         setAvailability((data.availability || []).join(", "));
         setCertificates((data.certificates || []).join(", "));
-        setPhotoUrl(data.photoUrl || "");
+        setPhotoUrl(data.photoUrl || photoUrl);
         setIdPhotoUrl(data.idPhotoUrl || "");
         setRolesExperience(
           Object.entries(data.rolesExperience || {}).map(([role, years]) => ({
@@ -74,6 +75,7 @@ function WorkerProfileContent() {
       }
     })();
   }, [router]);
+
 
   const handleProfilePhotoChange = (event) => {
     const file = event.target.files[0];

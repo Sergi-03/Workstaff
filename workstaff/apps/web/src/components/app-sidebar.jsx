@@ -1,25 +1,6 @@
 "use client";
 
 import * as React from "react";
-import {
-  IconCamera,
-  IconChartBar,
-  IconDashboard,
-  IconDatabase,
-  IconFileAi,
-  IconFileDescription,
-  IconFileWord,
-  IconFolder,
-  IconHelp,
-  IconListDetails,
-  IconReport,
-  IconSearch,
-  IconSettings,
-  IconUsers,
-} from "@tabler/icons-react";
-
-import { NavDocuments } from "@/components/nav-documents";
-import Image from "next/image";
 import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
 import { NavUser } from "@/components/nav-user";
@@ -32,156 +13,142 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import Link from "next/link";
+import {
+  Calendar,
+  Home,
+  Inbox,
+  Search,
+  Settings,
+  Users,
+  BriefcaseBusiness,
+  GraduationCap,
+  ClipboardCheck,
+  FileText,
+  TrendingUp,
+  UserCheck,
+} from "lucide-react";
+import Image from "next/image";
 
-const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
+const workerNavItems = [
+  {
+    title: "Dashboard",
+    url: "/worker/dashboard",
+    icon: Home,
   },
-  navMain: [
-    {
-      title: "Dashboard",
-      url: "#",
-      icon: IconDashboard,
-    },
-    {
-      title: "Lifecycle",
-      url: "#",
-      icon: IconListDetails,
-    },
-    {
-      title: "Analytics",
-      url: "#",
-      icon: IconChartBar,
-    },
-    {
-      title: "Projects",
-      url: "#",
-      icon: IconFolder,
-    },
-    {
-      title: "Team",
-      url: "#",
-      icon: IconUsers,
-    },
-  ],
-  navClouds: [
-    {
-      title: "Capture",
-      icon: IconCamera,
-      isActive: true,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Proposal",
-      icon: IconFileDescription,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Prompts",
-      icon: IconFileAi,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-  ],
-  navSecondary: [
-    {
-      title: "Settings",
-      url: "#",
-      icon: IconSettings,
-    },
-    {
-      title: "Get Help",
-      url: "#",
-      icon: IconHelp,
-    },
-    {
-      title: "Search",
-      url: "#",
-      icon: IconSearch,
-    },
-  ],
-  documents: [
-    {
-      name: "Data Library",
-      url: "#",
-      icon: IconDatabase,
-    },
-    {
-      name: "Reports",
-      url: "#",
-      icon: IconReport,
-    },
-    {
-      name: "Word Assistant",
-      url: "#",
-      icon: IconFileWord,
-    },
-  ],
-};
+  {
+    title: "Ofertas de Trabajo",
+    url: "/worker/jobs",
+    icon: BriefcaseBusiness,
+  },
+  {
+    title: "Mis Aplicaciones",
+    url: "/worker/applications",
+    icon: FileText,
+  },
+  {
+    title: "Formación",
+    url: "/worker/training",
+    icon: GraduationCap,
+  },
+  {
+    title: "Control Horario",
+    url: "/worker/attendance",
+    icon: ClipboardCheck,
+  },
+];
+
+const companyNavItems = [
+  {
+    title: "Dashboard",
+    url: "/company/dashboard",
+    icon: Home,
+  },
+  {
+    title: "Mis Ofertas",
+    url: "/company/jobs",
+    icon: FileText,
+  },
+  {
+    title: "Aplicaciones",
+    url: "/company/applications",
+    icon: Users,
+  },
+  {
+    title: "Personal Activo",
+    url: "/company/workers",
+    icon: UserCheck,
+  },
+  {
+    title: "Contratos",
+    url: "/company/contracts",
+    icon: ClipboardCheck,
+  },
+];
+
+const secondaryItems = [
+  {
+    title: "Soporte",
+    url: "#",
+    icon: Inbox,
+  },
+  {
+    title: "Configuración",
+    url: "#",
+    icon: Settings,
+  },
+];
 
 export function AppSidebar({ ...props }) {
+  const [role, setRole] = React.useState(null);
+
+  React.useEffect(() => {
+    const userRole = localStorage.getItem("role");
+    setRole(userRole);
+  }, []);
+
+  const getNavItems = () => {
+    if (role === "WORKER") return workerNavItems;
+    if (role === "COMPANY") return companyNavItems;
+    return [];
+  };
+
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
+    <Sidebar variant="inset" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
-            >
-              <Link href="#">
+            <SidebarMenuButton size="lg">
+              <div className="flex items-center justify-center w-18 h-40 rounded-lg bg-transparent">
                 <Image
-                  src="/logo.png" 
+                  src="/logo.png"
                   alt="logo workstaff"
                   width={100}
                   height={200}
-                  className="inline-block mr-2 bg-transparent"
+                  draggable={false}
+                  className="select-none object-contain w-32 h-32"
                 />
-                <span className="text-base font-semibold">Workstaff</span>
-              </Link>
+              </div>
+
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-semibold">Workstaff</span>
+                <span className="truncate text-xs">
+                  {role === "WORKER"
+                    ? "Trabajador"
+                    : role === "COMPANY"
+                    ? "Empresa"
+                    : ""}
+                </span>
+              </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavDocuments items={data.documents} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavMain items={getNavItems()} />
+        <NavSecondary items={secondaryItems} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser />
       </SidebarFooter>
     </Sidebar>
   );

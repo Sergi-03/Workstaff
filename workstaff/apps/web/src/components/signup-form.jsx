@@ -47,7 +47,7 @@ const companySchema = z.object({
 
 export function RegisterForm({ className, ...props }) {
   const router = useRouter();
-  const [uploading, setUploading] = useState(false)
+  const [uploading, setUploading] = useState(false);
   const [role, setRole] = useState("trabajador");
 
   const form = useForm({
@@ -77,8 +77,8 @@ export function RegisterForm({ className, ...props }) {
         formData.append("companyName", data.companyName);
         formData.append("cif", data.cif);
 
-        if(data.logo?.[0]) {
-          formData.append("logo", data.logo[0])
+        if (data.logo?.[0]) {
+          formData.append("logo", data.logo[0]);
         }
       }
 
@@ -95,6 +95,19 @@ export function RegisterForm({ className, ...props }) {
       if (!res.ok)
         throw new Error(result.error || "Error al registrar usuario");
 
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          fullname: result.user?.fullname || "Usuario",
+          name: result.user?.name || "Usuario",
+          cif: result.user?.cif || "Cif",
+          email: result.user?.contactInfo || "Email",
+          photoUrl: result.user?.photoUrl || "",
+          idPhotoUrl: result.user?.idPhotoUrl || "Id",
+          logoUrl: result.user?.logoUrl || "",
+          role: result.role || "",
+        })
+      );
       toast.success(result.message || "¡Registro completado!");
       form.reset();
       localStorage.setItem("signup_email", data.email);

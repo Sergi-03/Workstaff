@@ -15,11 +15,14 @@ function CompanyProfileContent() {
   const search = useSearchParams();
   const onboarding = search.get("onboarding") === "1";
 
+  const savedUser = typeof window !== "undefined" ? localStorage.getItem("user") : null;
+  const initialUser = savedUser ? JSON.parse(savedUser) : {};
+
   const [profile, setProfile] = useState(null);
-  const [name, setName] = useState("");
-  const [cif, setCif] = useState("");
-  const [contactInfo, setContactInfo] = useState("");
-  const [logoUrl, setLogoUrl] = useState("");
+  const [name, setName] = useState(initialUser.name || "");
+  const [cif, setCif] = useState(initialUser.cif || "");
+  const [contactInfo, setContactInfo] = useState(initialUser.contactInfo || "");
+  const [logoUrl, setLogoUrl] = useState(initialUser.logoUrl);
 
   const [logoFile, setLogoFile] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -43,17 +46,13 @@ function CompanyProfileContent() {
           method: "GET",
         });
         setProfile(data);
+
         setName(data.name || "");
         setCif(data.cif || "");
         setContactInfo(data.contactInfo || "");
         setLogoUrl(data.logoUrl || "");
       } catch (err) {
-        if(err.message.includes("Token")) {
-          router.replace("/login")
-        }
-        else {
         toast.error(err.message || "Error cargando perfil");
-        }
       }
     })();
   }, [router]);
