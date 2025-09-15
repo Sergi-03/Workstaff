@@ -21,7 +21,7 @@ function CompanyProfileContent() {
   const [profile, setProfile] = useState(null);
   const [name, setName] = useState(initialUser.name || "");
   const [cif, setCif] = useState(initialUser.cif || "");
-  const [contactInfo, setContactInfo] = useState(initialUser.contactInfo || "");
+  const [contactInfo, setContactInfo] = useState(initialUser.email || "");
   const [logoUrl, setLogoUrl] = useState(initialUser.logoUrl);
 
   const [logoFile, setLogoFile] = useState(null);

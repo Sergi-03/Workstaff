@@ -1,6 +1,6 @@
 "use client";
-
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
 import { NavUser } from "@/components/nav-user";
@@ -85,20 +85,8 @@ const companyNavItems = [
   },
 ];
 
-const secondaryItems = [
-  {
-    title: "Soporte",
-    url: "#",
-    icon: Inbox,
-  },
-  {
-    title: "Configuración",
-    url: "#",
-    icon: Settings,
-  },
-];
-
 export function AppSidebar({ ...props }) {
+  const router = useRouter();
   const [role, setRole] = React.useState(null);
 
   React.useEffect(() => {
@@ -111,6 +99,37 @@ export function AppSidebar({ ...props }) {
     if (role === "COMPANY") return companyNavItems;
     return [];
   };
+
+  const handleConfigurationClick = () => {
+    if (role === "WORKER") {
+      router.push("/worker/settings");
+    } else if (role === "COMPANY") {
+      router.push("/company/settings");
+    }
+  };
+
+  const handleSupportClick = () => {
+    if (role === "WORKER") {
+      router.push("/worker/support");
+    } else if (role === "COMPANY") {
+      router.push("/company/support");
+    }
+  };
+
+  const secondaryItems = [
+    {
+      title: "Soporte",
+      url: "#",
+      icon: Inbox,
+      onClick: handleSupportClick,
+    },
+    {
+      title: "Configuración",
+      url: "#",
+      icon: Settings,
+      onClick: handleConfigurationClick,
+    },
+  ];
 
   return (
     <Sidebar variant="inset" {...props}>
@@ -128,7 +147,6 @@ export function AppSidebar({ ...props }) {
                   className="select-none object-contain w-32 h-32"
                 />
               </div>
-
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold">Workstaff</span>
                 <span className="truncate text-xs">
