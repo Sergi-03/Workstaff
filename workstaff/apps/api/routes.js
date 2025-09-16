@@ -236,6 +236,144 @@ myRouter.post("/forgot-password", async (req, res) => {
   }
 });
 
+myRouter.put("/change-password", authMiddleware, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res
+        .status(400)
+        .json({ error: "Contraseña actual y nueva son obligatorias" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        error: "La nueva contraseña debe tener al menos 6 caracteres",
+      });
+    }
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: req.appUser.email,
+      password: currentPassword,
+    });
+
+    if (signInError) {
+      return res.status(400).json({ error: "Contraseña actual incorrecta" });
+    }
+
+    const { error: updateError } =
+      await supabaseAdmin.auth.admin.updateUserById(req.appUser.id, {
+        password: newPassword,
+      });
+
+    if (updateError) {
+      return res.status(400).json({ error: updateError.message });
+    }
+
+    return res.json({ message: "Contraseña actualizada correctamente" });
+  } catch (err) {
+    console.error("Error cambiando contraseña:", err);
+    return res.status(500).json({ error: "Error en el servidor" });
+  }
+});
+
+myRouter.put("/change-email", authMiddleware, async (req, res) => {
+  try {
+    const { newEmail } = req.body;
+
+    if (!newEmail || !newEmail.includes("@")) {
+      return res.status(400).json({ error: "Email inválido" });
+    }
+
+    const existingUser = await prisma.user.findUnique({
+      where: { email: newEmail.toLowerCase() },
+    });
+
+    if (existingUser && existingUser.id !== req.appUser.id) {
+      return res.status(400).json({ error: "Este email ya está en uso" });
+    }
+
+    const { error: updateError } =
+      await supabaseAdmin.auth.admin.updateUserById(req.appUser.id, {
+        email: newEmail.toLowerCase(),
+      });
+
+    if (updateError) {
+      return res.status(400).json({ error: updateError.message });
+    }
+
+    await prisma.user.update({
+      where: { id: req.appUser.id },
+      data: { email: newEmail.toLowerCase() },
+    });
+
+    if (req.appUser.role === "COMPANY") {
+      await prisma.companyProfile.update({
+        where: { userId: req.appUser.id },
+        data: { contactInfo: newEmail.toLowerCase() },
+      });
+    }
+
+    return res.json({
+      message: "Email actualizado correctamente",
+      email: newEmail.toLowerCase(),
+    });
+  } catch (err) {
+    console.error("Error cambiando email:", err);
+    return res.status(500).json({ error: "Error en el servidor" });
+  }
+});
+
+myRouter.delete("/delete-account", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.appUser.id;
+
+    const { data: files, error: listError } = await supabaseAdmin.storage
+      .from("user-documents")
+      .list(userId);
+
+    if (!listError && files && files.length > 0) {
+      const filePaths = files.map((file) => `${userId}/${file.name}`);
+      await supabaseAdmin.storage.from("user-documents").remove(filePaths);
+
+      const subfolders = ["profile", "dni", "logo"];
+      for (const folder of subfolders) {
+        const { data: folderFiles } = await supabaseAdmin.storage
+          .from("user-documents")
+          .list(`${userId}/${folder}`);
+
+        if (folderFiles && folderFiles.length > 0) {
+          const folderFilePaths = folderFiles.map(
+            (file) => `${userId}/${folder}/${file.name}`
+          );
+          await supabaseAdmin.storage
+            .from("user-documents")
+            .remove(folderFilePaths);
+        }
+      }
+    }
+
+    await prisma.user.delete({
+      where: { id: userId },
+    });
+
+    const { error: deleteAuthError } =
+      await supabaseAdmin.auth.admin.deleteUser(userId);
+
+    if (deleteAuthError) {
+      console.error(
+        "Error eliminando usuario de Supabase Auth:",
+        deleteAuthError
+      );
+    }
+
+    return res.json({ message: "Cuenta eliminada correctamente" });
+  } catch (err) {
+    console.error("Error eliminando cuenta:", err);
+    return res.status(500).json({ error: "Error en el servidor" });
+  }
+});
+
 myRouter.get(
   "/worker/profile",
   authMiddleware,

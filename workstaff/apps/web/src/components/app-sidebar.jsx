@@ -16,7 +16,7 @@ import {
 import {
   Calendar,
   Home,
-  Inbox,
+  CircleQuestionMark,
   Search,
   Settings,
   Users,
@@ -120,7 +120,7 @@ export function AppSidebar({ ...props }) {
     {
       title: "Soporte",
       url: "#",
-      icon: Inbox,
+      icon: CircleQuestionMark,
       onClick: handleSupportClick,
     },
     {

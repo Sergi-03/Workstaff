@@ -83,6 +83,7 @@ export function NavUser() {
   const handleLogout = () => {
     localStorage.clear();
     router.push("/login");
+    toast.success("Sesión cerrada correctamente!");
   };
 
   const getRoleSpecificMenuItems = () => {
