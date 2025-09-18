@@ -135,3 +135,11 @@
 .animate-fade-in-up {
   animation: fadeInUp 0.7s ease-out forwards;
 }
+
+.text-white {
+  @apply text-gray-900; 
+}
+
+.dark .text-white {
+  @apply text-white;
+}

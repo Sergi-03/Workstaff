@@ -32,6 +32,7 @@ model CompanyProfile {
   cif String
   contactInfo String
   logoUrl String?
+  onboardingCompleted Boolean @default(false)
   jobs Job[]
   contracts Contract[]
 }
@@ -44,6 +45,7 @@ model WorkerProfile {
   photoUrl String?
   idPhotoUrl String     
   verified Boolean @default(false) 
+  onboardingCompleted Boolean @default(false)
   certificates String[]
   experience String?
   rolesExperience Json?

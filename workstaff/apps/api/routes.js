@@ -185,8 +185,16 @@ myRouter.post("/login", async (req, res) => {
         id: true,
         role: true,
         email: true,
+        workerProfile: { select: { onboardingCompleted: true } },
+        companyProfile: { select: { onboardingCompleted: true } },
       },
     });
+
+    let onboardingCompleted = false;
+    if (user.role === "WORKER")
+      onboardingCompleted = user.workerProfile?.onboardingCompleted || false;
+    if (user.role === "COMPANY")
+      onboardingCompleted = user.companyProfile?.onboardingCompleted || false;
 
     if (!user) {
       return res.status(404).json({ error: "Usuario no encontrado en DB" });
@@ -197,6 +205,7 @@ myRouter.post("/login", async (req, res) => {
       token: authData.session.access_token,
       role: user.role,
       userId: user.id,
+      onboardingCompleted,
     });
   } catch (err) {
     console.error("Error en login:", err);
@@ -484,7 +493,10 @@ myRouter.put(
 
       const updated = await prisma.workerProfile.update({
         where: { userId: req.appUser.id },
-        data,
+        data: {
+          ...data,
+          onboardingCompleted: true,
+        },
       });
 
       return res.json({ message: "Perfil actualizado", profile: updated });
@@ -658,6 +670,7 @@ myRouter.put(
           name,
           cif,
           contactInfo,
+          onboardingCompleted: true,
         },
       });
 
