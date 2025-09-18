@@ -68,6 +68,7 @@ model Job {
   requiredSkills String[]
   duration String?
   salary Float?
+  imageUrl String?
   createdAt DateTime @default(now())
   company CompanyProfile @relation(fields: [companyId], references: [id], onDelete: Cascade)
   companyId String

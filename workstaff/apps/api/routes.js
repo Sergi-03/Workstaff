@@ -723,3 +723,80 @@ myRouter.put(
     }
   }
 );
+
+myRouter.post(
+  "/company/jobs",
+  authMiddleware,
+  roleMiddleware(["COMPANY"]),
+  upload.single("image"),
+  async (req, res) => {
+    try {
+      const { title, description, location, requiredSkills, duration, salary } =
+        req.body;
+
+      if (!title || !description || !location) {
+        return res
+          .status(400)
+          .json({ error: "Título, descripción y ubicación son obligatorios" });
+      }
+
+      const skillsArray = Array.isArray(requiredSkills)
+        ? requiredSkills
+        : requiredSkills
+        ? requiredSkills
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : [];
+
+      let imageUrl = null;
+      if (req.file) {
+        const timestamp = Date.now();
+        const imageId = `job-image-${timestamp}-${Math.random()
+          .toString(36)
+          .substr(2, 9)}`;
+        const fileExt = req.file.originalname.split(".").pop();
+        const filePath = `${req.appUser.id}/jobs/${imageId}.${fileExt}`;
+
+        const { error: uploadError } = await supabaseAdmin.storage
+          .from("user-documents")
+          .upload(filePath, req.file.buffer, {
+            contentType: req.file.mimetype,
+            upsert: true,
+          });
+
+        if (uploadError) throw new Error(uploadError.message);
+
+        const { data: signedUrlData, error: urlError } =
+          await supabaseAdmin.storage
+            .from("user-documents")
+            .createSignedUrl(filePath, 60 * 60 * 24 * 365 * 10);
+
+        if (urlError) throw new Error(urlError.message);
+        imageUrl = signedUrlData.signedUrl;
+      }
+
+      const job = await prisma.job.create({
+        data: {
+          title,
+          description,
+          location,
+          requiredSkills: skillsArray,
+          duration: duration || null,
+          salary: salary ? parseFloat(salary) : null,
+          company: { connect: { userId: req.appUser.id } },
+          imageUrl,
+        },
+      });
+
+      return res
+        .status(201)
+        .json({ message: "Oferta creada correctamente", job });
+    } catch (err) {
+      console.error(err);
+      return res
+        .status(500)
+        .json({ error: err.message || "Error creando la oferta" });
+    }
+  }
+);
