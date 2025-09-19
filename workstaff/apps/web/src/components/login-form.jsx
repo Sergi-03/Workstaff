@@ -18,12 +18,23 @@ const loginSchema = z.object({
   password: z.string().min(6, "La contraseña debe tener mínimo 6 caracteres"),
 });
 
+const twoFactorSchema = z.object({
+  token: z.string().min(6, "El código debe tener al menos 6 caracteres"),
+});
+
 export function LoginForm({ className, ...props }) {
   const router = useRouter();
   const [uploading, setUploading] = useState(false);
+  const [requires2FA, setRequires2FA] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
+  const [userPassword, setUserPassword] = useState("");
 
-  const form = useForm({
+  const loginForm = useForm({
     resolver: zodResolver(loginSchema),
+  });
+
+  const twoFactorForm = useForm({
+    resolver: zodResolver(twoFactorSchema),
   });
 
   const onSubmit = async (data) => {
@@ -45,16 +56,24 @@ export function LoginForm({ className, ...props }) {
         return;
       }
 
+      if (result.requires2FA) {
+        setRequires2FA(true);
+        setUserEmail(result.email);
+        setUserPassword(data.password); 
+        toast.info("Ingresa tu código de autenticación de dos factores");
+        return;
+      }
+
       localStorage.setItem("access_token", result.token);
       localStorage.setItem("role", result.role);
-      localStorage.setItem("userId", result.user?.id);
+      localStorage.setItem("userId", result.userId);
       localStorage.setItem(
         "user",
         JSON.stringify({
           fullname: result.user?.fullname || "Usuario",
           name: result.user?.name || "Usuario",
           cif: result.user?.cif || "Cif",
-          email: result.user?.contactInfo || "Email",
+          email: result.user?.contactInfo || result.user?.email || "Email",
           photoUrl: result.user?.photoUrl || "",
           idPhotoUrl: result.user?.idPhotoUrl || "Id",
           logoUrl: result.user?.logoUrl || "",
@@ -63,18 +82,7 @@ export function LoginForm({ className, ...props }) {
       );
 
       toast.success("Sesión iniciada correctamente!");
-
-      if (!result.onboardingCompleted) {
-        if (result.role === "WORKER")
-          router.push("/worker/profile?onboarding=1");
-        else if (result.role === "COMPANY")
-          router.push("/company/profile?onboarding=1");
-        else router.push("/");
-      } else {
-        if (result.role === "WORKER") router.push("/worker/dashboard");
-        else if (result.role === "COMPANY") router.push("/company/dashboard");
-        else router.push("/");
-      }
+      redirectUser(result);
     } catch (error) {
       console.error("Error en login:", error);
       toast.error("Error al conectar con el servidor");
@@ -83,10 +91,146 @@ export function LoginForm({ className, ...props }) {
     }
   };
 
+  const onSubmit2FA = async (data) => {
+    setUploading(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/2fa/login-verify`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: userEmail,
+            password: userPassword,
+            token: data.token,
+          }),
+        }
+      );
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        toast.error(result.error || "Código incorrecto");
+        return;
+      }
+
+      localStorage.setItem("access_token", result.token);
+      localStorage.setItem("role", result.role);
+      localStorage.setItem("userId", result.userId);
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          fullname: result.user?.fullname || "Usuario",
+          name: result.user?.name || "Usuario",
+          cif: result.user?.cif || "Cif",
+          email: result.user?.contactInfo || result.user?.email || "Email",
+          photoUrl: result.user?.photoUrl || "",
+          idPhotoUrl: result.user?.idPhotoUrl || "Id",
+          logoUrl: result.user?.logoUrl || "",
+          role: result.role || "",
+        })
+      );
+
+      toast.success("Verificación 2FA exitosa!");
+      redirectUser(result);
+    } catch (error) {
+      console.error("Error en verificación 2FA:", error);
+      toast.error("Error al conectar con el servidor");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const redirectUser = (result) => {
+    if (!result.onboardingCompleted) {
+      if (result.role === "WORKER") router.push("/worker/profile?onboarding=1");
+      else if (result.role === "COMPANY")
+        router.push("/company/profile?onboarding=1");
+      else router.push("/");
+    } else {
+      if (result.role === "WORKER") router.push("/worker/dashboard");
+      else if (result.role === "COMPANY") router.push("/company/dashboard");
+      else router.push("/");
+    }
+  };
+
+  const handleBackToLogin = () => {
+    setRequires2FA(false);
+    setUserEmail("");
+    twoFactorForm.reset();
+  };
+
+  if (requires2FA) {
+    return (
+      <div className={cn("flex flex-col gap-6", className)} {...props}>
+        <div className="animate-fade-in-up">
+          <form onSubmit={twoFactorForm.handleSubmit(onSubmit2FA)}>
+            <div className="flex flex-col gap-6">
+              <div className="flex flex-col items-center gap-2">
+                <div className="flex items-center justify-center rounded-md">
+                  <Image
+                    width={150}
+                    height={200}
+                    src="/logo.png"
+                    alt="logo workstaff"
+                    draggable={false}
+                    className="select-none outline-none"
+                  />
+                </div>
+                <h1 className="text-xl select-none font-bold">
+                  Verificación de dos factores
+                </h1>
+                <p className="text-center text-sm text-muted-foreground">
+                  Ingresa el código de tu aplicación de autenticación
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-6">
+                <div className="grid gap-3">
+                  <Label htmlFor="token">Código de verificación</Label>
+                  <Input
+                    id="token"
+                    type="text"
+                    placeholder="000000"
+                    maxLength={8}
+                    className="text-center text-lg tracking-widest"
+                    {...twoFactorForm.register("token")}
+                  />
+                  {twoFactorForm.formState.errors.token && (
+                    <p className="text-red-500 text-sm">
+                      {twoFactorForm.formState.errors.token.message}
+                    </p>
+                  )}
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full bg-red-500 hover:bg-red-600 text-white"
+                  disabled={uploading}
+                >
+                  {uploading ? "Verificando..." : "Verificar"}
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleBackToLogin}
+                  className="w-full"
+                >
+                  Volver al login
+                </Button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <div className={`animate-fade-in-up`}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
+        <form onSubmit={loginForm.handleSubmit(onSubmit)}>
           <div className="flex flex-col gap-6">
             <div className="flex flex-col items-center gap-2">
               <div className="flex items-center justify-center rounded-md">
@@ -120,11 +264,11 @@ export function LoginForm({ className, ...props }) {
                   type="email"
                   placeholder="m@example.com"
                   required
-                  {...form.register("email")}
+                  {...loginForm.register("email")}
                 />
-                {form.formState.errors.email && (
+                {loginForm.formState.errors.email && (
                   <p className="text-red-500 text-sm">
-                    {form.formState.errors.email.message}
+                    {loginForm.formState.errors.email.message}
                   </p>
                 )}
               </div>
@@ -143,11 +287,11 @@ export function LoginForm({ className, ...props }) {
                   id="password"
                   type="password"
                   required
-                  {...form.register("password")}
+                  {...loginForm.register("password")}
                 />
-                {form.formState.errors.password && (
+                {loginForm.formState.errors.password && (
                   <p className="text-red-500 text-sm">
-                    {form.formState.errors.password.message}
+                    {loginForm.formState.errors.password.message}
                   </p>
                 )}
               </div>

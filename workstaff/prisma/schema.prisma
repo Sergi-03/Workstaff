@@ -19,6 +19,9 @@ model User {
   email String @unique
   role Role
   createdAt DateTime @default(now())
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret String?
+  twoFactorBackupCodes String[]
   companyProfile CompanyProfile?
   workerProfile  WorkerProfile?
   notifications Notification[]

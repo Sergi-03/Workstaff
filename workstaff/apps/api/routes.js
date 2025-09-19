@@ -6,6 +6,8 @@ import { supabaseAdmin } from "./lib/supabaseAdmin.js";
 import { authMiddleware } from "./middlewares/authMiddleware.js";
 import { roleMiddleware } from "./middlewares/roleMiddleware.js";
 import multer from "multer";
+import speakeasy from "speakeasy";
+import QRCode from "qrcode";
 
 export const myRouter = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -185,6 +187,7 @@ myRouter.post("/login", async (req, res) => {
         id: true,
         role: true,
         email: true,
+        twoFactorEnabled: true,
         workerProfile: { select: { onboardingCompleted: true } },
         companyProfile: { select: { onboardingCompleted: true } },
       },
@@ -196,6 +199,15 @@ myRouter.post("/login", async (req, res) => {
     if (user.role === "COMPANY")
       onboardingCompleted = user.companyProfile?.onboardingCompleted || false;
 
+    if (user.twoFactorEnabled) {
+      return res.json({
+        message: "Se requiere verificación 2FA",
+        requires2FA: true,
+        email: user.email,
+        tempToken: null,
+      });
+    }
+
     if (!user) {
       return res.status(404).json({ error: "Usuario no encontrado en DB" });
     }
@@ -206,6 +218,7 @@ myRouter.post("/login", async (req, res) => {
       role: user.role,
       userId: user.id,
       onboardingCompleted,
+      requires2FA: false,
     });
   } catch (err) {
     console.error("Error en login:", err);
@@ -329,6 +342,322 @@ myRouter.put("/change-email", authMiddleware, async (req, res) => {
     });
   } catch (err) {
     console.error("Error cambiando email:", err);
+    return res.status(500).json({ error: "Error en el servidor" });
+  }
+});
+
+myRouter.post("/2fa/setup", authMiddleware, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.appUser.id },
+      select: { twoFactorEnabled: true, email: true },
+    });
+
+    if (user.twoFactorEnabled) {
+      return res.status(400).json({
+        error: "La autenticación de dos factores ya está habilitada",
+      });
+    }
+
+    const secret = speakeasy.generateSecret({
+      name: `WorkStaff (${user.email})`,
+      issuer: "WorkStaff",
+      length: 20,
+    });
+
+    await prisma.user.update({
+      where: { id: req.appUser.id },
+      data: { twoFactorSecret: secret.base32 },
+    });
+
+    const qrCodeUrl = await QRCode.toDataURL(secret.otpauth_url);
+
+    return res.json({
+      secret: secret.base32,
+      qrCode: qrCodeUrl,
+      manualEntryKey: secret.base32,
+    });
+  } catch (err) {
+    console.error("Error configurando 2FA:", err);
+    return res.status(500).json({ error: "Error en el servidor" });
+  }
+});
+
+myRouter.post("/2fa/verify", authMiddleware, async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ error: "Código requerido" });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.appUser.id },
+      select: { twoFactorSecret: true, twoFactorEnabled: true },
+    });
+
+    if (!user.twoFactorSecret) {
+      return res.status(400).json({
+        error: "Primero debes configurar la autenticación de dos factores",
+      });
+    }
+
+    const verified = speakeasy.totp.verify({
+      secret: user.twoFactorSecret,
+      encoding: "base32",
+      token: token,
+      window: 2,
+    });
+
+    if (!verified) {
+      return res.status(400).json({ error: "Código incorrecto" });
+    }
+
+    const backupCodes = [];
+    for (let i = 0; i < 8; i++) {
+      backupCodes.push(Math.random().toString(36).substr(2, 8).toUpperCase());
+    }
+
+    await prisma.user.update({
+      where: { id: req.appUser.id },
+      data: {
+        twoFactorEnabled: true,
+        twoFactorBackupCodes: backupCodes,
+      },
+    });
+
+    return res.json({
+      message: "Autenticación de dos factores habilitada correctamente",
+      backupCodes,
+    });
+  } catch (err) {
+    console.error("Error verificando 2FA:", err);
+    return res.status(500).json({ error: "Error en el servidor" });
+  }
+});
+
+myRouter.delete("/2fa/disable", authMiddleware, async (req, res) => {
+  try {
+    const { password, token } = req.body;
+
+    if (!password) {
+      return res.status(400).json({ error: "Contraseña requerida" });
+    }
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: req.appUser.email,
+      password: password,
+    });
+
+    if (signInError) {
+      return res.status(400).json({ error: "Contraseña incorrecta" });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.appUser.id },
+      select: {
+        twoFactorEnabled: true,
+        twoFactorSecret: true,
+        twoFactorBackupCodes: true,
+      },
+    });
+
+    if (!user.twoFactorEnabled) {
+      return res.status(400).json({
+        error: "La autenticación de dos factores no está habilitada",
+      });
+    }
+
+    if (token) {
+      const verified = speakeasy.totp.verify({
+        secret: user.twoFactorSecret,
+        encoding: "base32",
+        token: token,
+        window: 2,
+      });
+
+      if (!verified) {
+        const backupCodeIndex = user.twoFactorBackupCodes.indexOf(
+          token.toUpperCase()
+        );
+        if (backupCodeIndex === -1) {
+          return res.status(400).json({ error: "Código incorrecto" });
+        }
+      }
+    }
+
+    await prisma.user.update({
+      where: { id: req.appUser.id },
+      data: {
+        twoFactorEnabled: false,
+        twoFactorSecret: null,
+        twoFactorBackupCodes: [],
+      },
+    });
+
+    return res.json({
+      message: "Autenticación de dos factores deshabilitada correctamente",
+    });
+  } catch (err) {
+    console.error("Error deshabilitando 2FA:", err);
+    return res.status(500).json({ error: "Error en el servidor" });
+  }
+});
+
+myRouter.post("/2fa/login-verify", async (req, res) => {
+  try {
+    const { email, token, password } = req.body;
+
+    if (!email || !token || !password) {
+      return res
+        .status(400)
+        .json({ error: "Email, contraseña y código requeridos" });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+      include: {
+        workerProfile: {
+          select: { onboardingCompleted: true, fullname: true, photoUrl: true },
+        },
+        companyProfile: {
+          select: {
+            onboardingCompleted: true,
+            name: true,
+            cif: true,
+            logoUrl: true,
+          },
+        },
+      },
+    });
+
+    if (!user || !user.twoFactorEnabled) {
+      return res.status(400).json({ error: "Usuario no válido" });
+    }
+
+    let isValidToken = speakeasy.totp.verify({
+      secret: user.twoFactorSecret,
+      encoding: "base32",
+      token,
+      window: 2,
+    });
+
+    if (!isValidToken) {
+      const backupCodeIndex = user.twoFactorBackupCodes.indexOf(
+        token.toUpperCase()
+      );
+      if (backupCodeIndex !== -1) {
+        isValidToken = true;
+        const updatedBackupCodes = user.twoFactorBackupCodes.filter(
+          (_, idx) => idx !== backupCodeIndex
+        );
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { twoFactorBackupCodes: updatedBackupCodes },
+        });
+      }
+    }
+
+    if (!isValidToken) {
+      return res.status(400).json({ error: "Código incorrecto" });
+    }
+
+    const { data: authData, error: authError } =
+      await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+    if (authError || !authData.session) {
+      return res
+        .status(401)
+        .json({ error: "Error iniciando sesión en Supabase" });
+    }
+
+    let onboardingCompleted = false;
+    if (user.role === "WORKER")
+      onboardingCompleted = user.workerProfile?.onboardingCompleted || false;
+    if (user.role === "COMPANY")
+      onboardingCompleted = user.companyProfile?.onboardingCompleted || false;
+
+    return res.json({
+      message: "Verificación 2FA exitosa",
+      token: authData.session.access_token,
+      role: user.role,
+      userId: user.id,
+      onboardingCompleted,
+      user,
+    });
+  } catch (err) {
+    console.error("Error verificando 2FA en login:", err);
+    return res.status(500).json({ error: "Error en el servidor" });
+  }
+});
+
+myRouter.post("/2fa/backup-codes", authMiddleware, async (req, res) => {
+  try {
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({ error: "Contraseña requerida" });
+    }
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: req.appUser.email,
+      password: password,
+    });
+
+    if (signInError) {
+      return res.status(400).json({ error: "Contraseña incorrecta" });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.appUser.id },
+      select: { twoFactorEnabled: true },
+    });
+
+    if (!user.twoFactorEnabled) {
+      return res.status(400).json({
+        error: "La autenticación de dos factores no está habilitada",
+      });
+    }
+
+    const backupCodes = [];
+    for (let i = 0; i < 8; i++) {
+      backupCodes.push(Math.random().toString(36).substr(2, 8).toUpperCase());
+    }
+
+    await prisma.user.update({
+      where: { id: req.appUser.id },
+      data: { twoFactorBackupCodes: backupCodes },
+    });
+
+    return res.json({
+      message: "Códigos de respaldo regenerados",
+      backupCodes,
+    });
+  } catch (err) {
+    console.error("Error generando códigos de respaldo:", err);
+    return res.status(500).json({ error: "Error en el servidor" });
+  }
+});
+
+myRouter.get("/2fa/status", authMiddleware, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.appUser.id },
+      select: {
+        twoFactorEnabled: true,
+        twoFactorBackupCodes: true,
+      },
+    });
+
+    return res.json({
+      enabled: user.twoFactorEnabled,
+      backupCodesCount: user.twoFactorBackupCodes.length,
+    });
+  } catch (err) {
+    console.error("Error obteniendo estado 2FA:", err);
     return res.status(500).json({ error: "Error en el servidor" });
   }
 });
