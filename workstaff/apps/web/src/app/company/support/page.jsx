@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   ChevronDown,
   ChevronUp,
@@ -198,6 +198,10 @@ export default function CompanySupportPage() {
   const isOpen = (categoryId, questionIndex) => {
     return openItems.has(`${categoryId}-${questionIndex}`);
   };
+
+  useEffect(() => {
+    document.title = "Centro de soporte | Workstaff"
+  }, []);
 
   return (
     <div className="min-h-screen select-none animate-fade-in-up">

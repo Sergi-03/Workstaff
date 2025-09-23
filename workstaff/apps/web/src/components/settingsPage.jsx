@@ -479,7 +479,7 @@ export function SettingsPage() {
                   : "Agrega una capa extra de seguridad a tu cuenta"}
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex w-full justify-center sm:w-auto sm:justify-end">
               {!twoFactorStatus.enabled ? (
                 <Button onClick={handleSetup2FA} disabled={loading}>
                   {loading ? "Configurando..." : "Configurar"}
@@ -507,7 +507,10 @@ export function SettingsPage() {
       </Card>
 
       <Dialog open={setup2FAOpen} onOpenChange={setSetup2FAOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent
+          className="w-[95%] max-w-md sm:rounded-lg p-4 sm:p-6 
+             max-h-[90vh] overflow-y-auto select-none"
+        >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Smartphone className="h-5 w-5" />
