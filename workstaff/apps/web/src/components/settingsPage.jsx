@@ -332,7 +332,13 @@ export function SettingsPage() {
   };
 
   if (!user) {
-    return <div className="p-6">Cargando...</div>;
+    return (
+      <div className="animate-fade-in-up p-6 max-w-7xl mx-auto">
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500"></div>
+        </div>
+      </div>
+    );
   }
 
   return (

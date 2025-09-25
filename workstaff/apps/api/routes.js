@@ -1142,3 +1142,162 @@ myRouter.post(
     }
   }
 );
+
+myRouter.get(
+  "/company/jobs",
+  authMiddleware,
+  roleMiddleware(["COMPANY"]),
+  async (req, res) => {
+    try {
+      const { page = 1, limit = 6, search = "" } = req.query;
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+
+      const companyProfile = await prisma.companyProfile.findUnique({
+        where: { userId: req.appUser.id },
+        select: { id: true },
+      });
+
+      if (!companyProfile) {
+        return res
+          .status(404)
+          .json({ error: "Perfil de empresa no encontrado" });
+      }
+
+      const whereClause = {
+        companyId: companyProfile.id,
+        ...(search && {
+          OR: [
+            { title: { contains: search, mode: "insensitive" } },
+            { description: { contains: search, mode: "insensitive" } },
+            { location: { contains: search, mode: "insensitive" } },
+            {
+              requiredSkills: {
+                hasSome: search.split(" ").filter(Boolean),
+              },
+            },
+          ],
+        }),
+      };
+
+      const [jobs, totalCount] = await Promise.all([
+        prisma.job.findMany({
+          where: whereClause,
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            location: true,
+            requiredSkills: true,
+            duration: true,
+            salary: true,
+            imageUrl: true,
+            createdAt: true,
+            _count: {
+              select: {
+                applications: true,
+                contracts: true,
+              },
+            },
+            applications: {
+              select: {
+                id: true,
+                status: true,
+                createdAt: true,
+                worker: {
+                  select: {
+                    id: true,
+                    fullname: true,
+                    photoUrl: true,
+                  },
+                },
+              },
+              take: 5,
+              orderBy: { createdAt: "desc" },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+          skip: parseInt(skip),
+          take: parseInt(limit),
+        }),
+        prisma.job.count({ where: whereClause }),
+      ]);
+
+      const jobsWithProcessedData = await Promise.all(
+        jobs.map(async (job) => {
+          let processedImageUrl = job.imageUrl;
+
+          const processedApplications = await Promise.all(
+            job.applications.map(async (application) => {
+              let workerPhotoUrl = null;
+
+              if (application.worker.photoUrl) {
+                const isFullUrl =
+                  application.worker.photoUrl.startsWith("http");
+                if (isFullUrl) {
+                  workerPhotoUrl = application.worker.photoUrl;
+                } else {
+                  try {
+                    const { data, error } = await supabaseAdmin.storage
+                      .from("user-documents")
+                      .createSignedUrl(
+                        application.worker.photoUrl,
+                        60 * 60 * 24 * 365 * 10
+                      );
+
+                    if (!error) {
+                      workerPhotoUrl = data.signedUrl;
+                    }
+                  } catch (error) {
+                    console.error(
+                      "Error generando URL firmada para foto de trabajador:",
+                      error
+                    );
+                  }
+                }
+              }
+
+              return {
+                ...application,
+                worker: {
+                  ...application.worker,
+                  photoUrl: workerPhotoUrl,
+                },
+              };
+            })
+          );
+
+          return {
+            id: job.id,
+            title: job.title,
+            description: job.description,
+            location: job.location,
+            requiredSkills: job.requiredSkills,
+            duration: job.duration,
+            salary: job.salary,
+            imageUrl: processedImageUrl,
+            createdAt: job.createdAt,
+            applicationsCount: job._count.applications,
+            contractsCount: job._count.contracts,
+            applications: processedApplications,
+          };
+        })
+      );
+
+      const totalPages = Math.ceil(totalCount / parseInt(limit));
+
+      return res.json({
+        jobs: jobsWithProcessedData,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages,
+          totalCount,
+          hasNextPage: parseInt(page) < totalPages,
+          hasPreviousPage: parseInt(page) > 1,
+        },
+      });
+    } catch (err) {
+      console.error("Error obteniendo ofertas de empresa:", err);
+      return res.status(500).json({ error: "Error en el servidor" });
+    }
+  }
+);
