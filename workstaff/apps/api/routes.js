@@ -1301,3 +1301,320 @@ myRouter.get(
     }
   }
 );
+
+myRouter.get(
+  "/company/jobs/:jobId",
+  authMiddleware,
+  roleMiddleware(["COMPANY"]),
+  async (req, res) => {
+    try {
+      const { jobId } = req.params;
+
+      const companyProfile = await prisma.companyProfile.findUnique({
+        where: { userId: req.appUser.id },
+        select: { id: true },
+      });
+
+      if (!companyProfile) {
+        return res
+          .status(404)
+          .json({ error: "Perfil de empresa no encontrado" });
+      }
+
+      const job = await prisma.job.findFirst({
+        where: {
+          id: jobId,
+          companyId: companyProfile.id,
+        },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          location: true,
+          requiredSkills: true,
+          duration: true,
+          salary: true,
+          imageUrl: true,
+          createdAt: true,
+          company: {
+            select: {
+              name: true,
+              logoUrl: true,
+            },
+          },
+          _count: {
+            select: {
+              applications: true,
+              contracts: true,
+            },
+          },
+          applications: {
+            select: {
+              id: true,
+              status: true,
+              createdAt: true,
+              worker: {
+                select: {
+                  id: true,
+                  fullname: true,
+                  photoUrl: true,
+                  skills: true,
+                  experience: true,
+                  location: true,
+                },
+              },
+            },
+            orderBy: { createdAt: "desc" },
+          },
+        },
+      });
+
+      if (!job) {
+        return res.status(404).json({ error: "Oferta no encontrada" });
+      }
+
+      const processedApplications = await Promise.all(
+        job.applications.map(async (application) => {
+          let workerPhotoUrl = null;
+
+          if (application.worker.photoUrl) {
+            const isFullUrl = application.worker.photoUrl.startsWith("http");
+            if (isFullUrl) {
+              workerPhotoUrl = application.worker.photoUrl;
+            } else {
+              try {
+                const { data, error } = await supabaseAdmin.storage
+                  .from("user-documents")
+                  .createSignedUrl(
+                    application.worker.photoUrl,
+                    60 * 60 * 24 * 365 * 10
+                  );
+
+                if (!error) {
+                  workerPhotoUrl = data.signedUrl;
+                }
+              } catch (error) {
+                console.error("Error generando URL firmada:", error);
+              }
+            }
+          }
+
+          return {
+            ...application,
+            worker: {
+              ...application.worker,
+              photoUrl: workerPhotoUrl,
+            },
+          };
+        })
+      );
+
+      let companyLogoUrl = null;
+      if (job.company.logoUrl) {
+        const isFullUrl = job.company.logoUrl.startsWith("http");
+        if (isFullUrl) {
+          companyLogoUrl = job.company.logoUrl;
+        } else {
+          try {
+            const { data, error } = await supabaseAdmin.storage
+              .from("user-documents")
+              .createSignedUrl(job.company.logoUrl, 60 * 60 * 24 * 365 * 10);
+
+            if (!error) {
+              companyLogoUrl = data.signedUrl;
+            }
+          } catch (error) {
+            console.error("Error generando URL firmada para logo:", error);
+          }
+        }
+      }
+
+      const jobWithProcessedData = {
+        ...job,
+        applicationsCount: job._count.applications,
+        contractsCount: job._count.contracts,
+        applications: processedApplications,
+        company: {
+          ...job.company,
+          logoUrl: companyLogoUrl,
+        },
+      };
+
+      return res.json({ job: jobWithProcessedData });
+    } catch (err) {
+      console.error("Error obteniendo oferta:", err);
+      return res.status(500).json({ error: "Error en el servidor" });
+    }
+  }
+);
+
+myRouter.put(
+  "/company/jobs/:jobId",
+  authMiddleware,
+  roleMiddleware(["COMPANY"]),
+  upload.single("image"),
+  async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      const {
+        title,
+        description,
+        location,
+        requiredSkills,
+        duration,
+        salary,
+        removeImage,
+      } = req.body;
+
+      if (!title || !description || !location) {
+        return res.status(400).json({
+          error: "Título, descripción y ubicación son obligatorios",
+        });
+      }
+
+      const companyProfile = await prisma.companyProfile.findUnique({
+        where: { userId: req.appUser.id },
+        select: { id: true },
+      });
+
+      if (!companyProfile) {
+        return res
+          .status(404)
+          .json({ error: "Perfil de empresa no encontrado" });
+      }
+
+      const existingJob = await prisma.job.findFirst({
+        where: {
+          id: jobId,
+          companyId: companyProfile.id,
+        },
+        select: { id: true, imageUrl: true },
+      });
+
+      if (!existingJob) {
+        return res.status(404).json({ error: "Oferta no encontrada" });
+      }
+
+      const skillsArray = Array.isArray(requiredSkills)
+        ? requiredSkills
+        : requiredSkills
+        ? JSON.parse(requiredSkills)
+        : [];
+
+      let imageUrl = existingJob.imageUrl;
+
+      if (removeImage === "true") {
+        imageUrl = null;
+      }
+
+      if (req.file) {
+        const timestamp = Date.now();
+        const imageId = `job-image-${timestamp}-${Math.random()
+          .toString(36)
+          .substr(2, 9)}`;
+        const fileExt = req.file.originalname.split(".").pop();
+        const filePath = `${req.appUser.id}/jobs/${imageId}.${fileExt}`;
+
+        const { error: uploadError } = await supabaseAdmin.storage
+          .from("user-documents")
+          .upload(filePath, req.file.buffer, {
+            contentType: req.file.mimetype,
+            upsert: true,
+          });
+
+        if (uploadError) throw new Error(uploadError.message);
+
+        const { data: signedUrlData, error: urlError } =
+          await supabaseAdmin.storage
+            .from("user-documents")
+            .createSignedUrl(filePath, 60 * 60 * 24 * 365 * 10);
+
+        if (urlError) throw new Error(urlError.message);
+        imageUrl = signedUrlData.signedUrl;
+      }
+
+      const updatedJob = await prisma.job.update({
+        where: { id: jobId },
+        data: {
+          title,
+          description,
+          location,
+          requiredSkills: skillsArray,
+          duration: duration || null,
+          salary: salary ? parseFloat(salary) : null,
+          imageUrl,
+        },
+      });
+
+      return res.json({
+        message: "Oferta actualizada correctamente",
+        job: updatedJob,
+      });
+    } catch (err) {
+      console.error("Error actualizando oferta:", err);
+      return res.status(500).json({
+        error: err.message || "Error actualizando la oferta",
+      });
+    }
+  }
+);
+
+myRouter.delete(
+  "/company/jobs/:jobId",
+  authMiddleware,
+  roleMiddleware(["COMPANY"]),
+  async (req, res) => {
+    try {
+      const { jobId } = req.params;
+
+      const companyProfile = await prisma.companyProfile.findUnique({
+        where: { userId: req.appUser.id },
+        select: { id: true },
+      });
+
+      if (!companyProfile) {
+        return res
+          .status(404)
+          .json({ error: "Perfil de empresa no encontrado" });
+      }
+
+      const existingJob = await prisma.job.findFirst({
+        where: {
+          id: jobId,
+          companyId: companyProfile.id,
+        },
+        select: {
+          id: true,
+          imageUrl: true,
+          _count: {
+            select: {
+              applications: true,
+              contracts: true,
+            },
+          },
+        },
+      });
+
+      if (!existingJob) {
+        return res.status(404).json({ error: "Oferta no encontrada" });
+      }
+
+      if (existingJob._count.contracts > 0) {
+        return res.status(400).json({
+          error: "No se puede eliminar una oferta con contratos activos",
+        });
+      }
+
+      await prisma.job.delete({
+        where: { id: jobId },
+      });
+
+      return res.json({ message: "Oferta eliminada correctamente" });
+    } catch (err) {
+      console.error("Error eliminando oferta:", err);
+      return res.status(500).json({
+        error: err.message || "Error eliminando la oferta",
+      });
+    }
+  }
+);
