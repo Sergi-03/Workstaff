@@ -20,11 +20,8 @@ import {
   MapPin,
   Euro,
   Calendar,
-  Users,
-  FileText,
   Eye,
   Edit,
-  Trash2,
   Clock,
   Briefcase,
 } from "lucide-react";
@@ -182,9 +179,8 @@ export default function CompanyJobsView() {
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {jobs.map((job) => {
-            const skills = job.requiredSkills
-              ? JSON.parse(job.requiredSkills)
-              : [];
+            const skills = job.requiredSkills || [];
+
             return (
               <Card
                 key={job.id}

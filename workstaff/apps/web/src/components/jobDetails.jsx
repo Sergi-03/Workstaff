@@ -96,35 +96,6 @@ export default function JobDetailsView() {
     }
   };
 
-  const handleDelete = async () => {
-    setDeleting(true);
-    try {
-      const token = localStorage.getItem("access_token");
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/company/jobs/${jobId}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Error al eliminar la oferta");
-      }
-
-      toast.success("Oferta eliminada correctamente");
-      router.push("/company/dashboard");
-    } catch (error) {
-      console.error("Error eliminando oferta:", error);
-      toast.error(error.message || "Error al eliminar la oferta");
-    } finally {
-      setDeleting(false);
-    }
-  };
-
   const formatSalary = (salary) => {
     if (!salary) return "No especificado";
     return `${salary.toLocaleString()}€/mes`;
@@ -242,39 +213,6 @@ export default function JobDetailsView() {
             <Edit className="h-4 w-4 mr-2" />
             Editar
           </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button className="bg-red-500 hover:bg-red-600 text-white flex-1 sm:flex-none">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Eliminar
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>¿Eliminar oferta?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Esta acción no se puede deshacer. Se eliminará permanentemente
-                  la oferta y todas las aplicaciones asociadas.
-                  {job.contractsCount > 0 && (
-                    <div className="mt-2 p-2 bg-red-50 dark:bg-red-950 rounded text-red-600 dark:text-red-400 text-sm">
-                      ⚠️ No se puede eliminar: Esta oferta tiene{" "}
-                      {job.contractsCount} contratos activos.
-                    </div>
-                  )}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleDelete}
-                  disabled={deleting || job.contractsCount > 0}
-                  className="bg-red-500 hover:bg-red-600"
-                >
-                  {deleting ? "Eliminando..." : "Eliminar"}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </div>
       </div>
 
@@ -309,7 +247,7 @@ export default function JobDetailsView() {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
-                  {JSON.parse(job.requiredSkills).map((skill, index) => (
+                  {(job.requiredSkills || []).map((skill, index) => (
                     <Badge key={index} variant="secondary">
                       {skill}
                     </Badge>
