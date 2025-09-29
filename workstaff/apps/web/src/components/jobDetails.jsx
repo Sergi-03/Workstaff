@@ -15,7 +15,6 @@ import {
   Users,
   FileText,
   Edit,
-  Trash2,
   Clock,
   Briefcase,
   Building,
@@ -25,17 +24,6 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 
 export default function JobDetailsView() {
   const router = useRouter();
@@ -44,7 +32,6 @@ export default function JobDetailsView() {
 
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");

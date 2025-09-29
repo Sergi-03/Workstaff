@@ -1495,11 +1495,21 @@ myRouter.put(
         return res.status(404).json({ error: "Oferta no encontrada" });
       }
 
-      const skillsArray = Array.isArray(requiredSkills)
-        ? requiredSkills
-        : requiredSkills
-        ? JSON.parse(requiredSkills)
-        : [];
+      let skillsArray = [];
+      if (requiredSkills) {
+        if (Array.isArray(requiredSkills)) {
+          skillsArray = requiredSkills;
+        } else if (typeof requiredSkills === "string") {
+          try {
+            skillsArray = JSON.parse(requiredSkills);
+          } catch {
+            skillsArray = requiredSkills
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean);
+          }
+        }
+      }
 
       let imageUrl = existingJob.imageUrl;
 

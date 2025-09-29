@@ -54,6 +54,8 @@ export default function EditJobView() {
 
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
@@ -115,12 +117,46 @@ export default function EditJobView() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!formData.title?.trim() || formData.title.length < 3) {
+      toast.error("El título debe tener al menos 3 caracteres");
+      return;
+    }
+
+    if (!formData.description?.trim() || formData.description.length < 20) {
+      toast.error("La descripción debe tener al menos 20 caracteres");
+      return;
+    }
+
+    if (!formData.location?.trim() || formData.location.length < 3) {
+      toast.error("La ubicación debe tener al menos 3 caracteres");
+      return;
+    }
+
+    if (formData.requiredSkills.length === 0) {
+      toast.error("Debes añadir al menos una habilidad");
+      return;
+    }
+
+    if (
+      formData.salary &&
+      (isNaN(parseFloat(formData.salary)) || parseFloat(formData.salary) < 0)
+    ) {
+      toast.error("El salario debe ser un número válido mayor o igual a 0");
+      return;
+    }
+
     setIsSubmitting(true);
     const token = localStorage.getItem("access_token");
     const data = new FormData();
     Object.entries(formData).forEach(([key, value]) => {
-      if (key === "requiredSkills") data.append(key, JSON.stringify(value));
-      else data.append(key, value);
+      if (key === "requiredSkills") {
+        data.append(key, value.join(","));
+      } else if (key === "image" && value) {
+        data.append(key, value);
+      } else if (key !== "image") {
+        data.append(key, value);
+      }
     });
 
     try {
@@ -144,6 +180,7 @@ export default function EditJobView() {
   };
 
   const handleDelete = async () => {
+    setDeleting(true);
     const token = localStorage.getItem("access_token");
     try {
       const res = await fetch(
@@ -160,6 +197,9 @@ export default function EditJobView() {
       router.push("/company/dashboard");
     } catch (err) {
       toast.error(err.message);
+      setIsDialogOpen(false);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -307,13 +347,13 @@ export default function EditJobView() {
                   <div className="space-y-2">
                     <Label htmlFor="salary" className="flex items-center gap-2">
                       <Euro className="h-4 w-4" />
-                      Salario anual (€)
+                      Salario (€/mes)
                     </Label>
                     <Input
                       id="salary"
                       name="salary"
                       type="number"
-                      placeholder="45000"
+                      placeholder="2500"
                       value={formData.salary || ""}
                       onChange={handleChange}
                     />
@@ -327,7 +367,7 @@ export default function EditJobView() {
                     <Input
                       id="skills"
                       name="requiredSkills"
-                      placeholder="React, JavaScript, CSS (separadas por coma)"
+                      placeholder="Ej: Atención al cliente, Cocina, Limpieza..."
                       value={formData.requiredSkills.join(", ")}
                       onChange={handleSkillsChange}
                     />
@@ -458,7 +498,10 @@ export default function EditJobView() {
 
                   <Separator />
 
-                  <AlertDialog>
+                  <AlertDialog
+                    open={isDialogOpen}
+                    onOpenChange={setIsDialogOpen}
+                  >
                     <AlertDialogTrigger asChild>
                       <Button className="w-full bg-red-500 hover:bg-red-600 text-white">
                         <Trash2 className="h-4 w-4 mr-2" />
@@ -476,10 +519,14 @@ export default function EditJobView() {
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
                         <AlertDialogAction
-                          onClick={handleDelete}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleDelete();
+                          }}
                           className="bg-red-500 hover:bg-red-600 text-white"
+                          disabled={deleting}
                         >
-                          Eliminar
+                          {deleting ? "Eliminando" : "Eliminar"}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>

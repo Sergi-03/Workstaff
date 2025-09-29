@@ -27,7 +27,6 @@ import {
 import { toast } from "sonner";
 import {
   X,
-  Upload,
   MapPin,
   Euro,
   Calendar,
@@ -145,13 +144,18 @@ export default function CreateJobForm() {
   };
 
   const onSubmit = async (data) => {
+    if (skills.length === 0) {
+      toast.error("Debes añadir al menos una habilidad");
+      return;
+    }
+
     setLoading(true);
     try {
       const formData = new FormData();
       formData.append("title", data.title);
       formData.append("description", data.description);
       formData.append("location", data.location);
-      formData.append("requiredSkills", JSON.stringify(skills));
+      formData.append("requiredSkills", skills.join(","));
 
       if (data.duration) {
         formData.append("duration", data.duration);
@@ -328,7 +332,7 @@ export default function CreateJobForm() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Habilidades Requeridas</CardTitle>
+            <CardTitle>Habilidades Requeridas *</CardTitle>
             <CardDescription>
               Añade las habilidades y competencias necesarias para el puesto
             </CardDescription>
@@ -339,7 +343,7 @@ export default function CreateJobForm() {
                 value={currentSkill}
                 onChange={(e) => setCurrentSkill(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Ej:  Atención al cliente, Cocina mediterránea, Gestión de reservas, Limpieza, Trabajo en equipo..."
+                placeholder="Ej: Atención al cliente, Cocina, Limpieza..."
                 className="flex-1"
                 maxLength={30}
               />
