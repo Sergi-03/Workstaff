@@ -1628,3 +1628,190 @@ myRouter.delete(
     }
   }
 );
+
+myRouter.get(
+  "/worker/jobs",
+  authMiddleware,
+  roleMiddleware(["WORKER"]),
+  async (req, res) => {
+    try {
+      const { page = 1, limit = 9, search = "", location = "", skills = "" } = req.query;
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+
+      const whereClause = {
+        ...(search && {
+          OR: [
+            { title: { contains: search, mode: "insensitive" } },
+            { description: { contains: search, mode: "insensitive" } },
+          ],
+        }),
+        ...(location && {
+          location: { contains: location, mode: "insensitive" },
+        }),
+        ...(skills && {
+          requiredSkills: {
+            hasSome: skills.split(",").map(s => s.trim()).filter(Boolean),
+          },
+        }),
+      };
+
+      const [jobs, totalCount] = await Promise.all([
+        prisma.job.findMany({
+          where: whereClause,
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            location: true,
+            requiredSkills: true,
+            duration: true,
+            salary: true,
+            imageUrl: true,
+            createdAt: true,
+            company: {
+              select: {
+                name: true,
+                logoUrl: true,
+              },
+            },
+            _count: {
+              select: {
+                applications: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+          skip: parseInt(skip),
+          take: parseInt(limit),
+        }),
+        prisma.job.count({ where: whereClause }),
+      ]);
+
+      const jobsWithProcessedLogos = await Promise.all(
+        jobs.map(async (job) => {
+          let companyLogoUrl = null;
+          
+          if (job.company.logoUrl) {
+            const isFullUrl = job.company.logoUrl.startsWith("http");
+            if (isFullUrl) {
+              companyLogoUrl = job.company.logoUrl;
+            } else {
+              try {
+                const { data, error } = await supabaseAdmin.storage
+                  .from("user-documents")
+                  .createSignedUrl(job.company.logoUrl, 60 * 60 * 24 * 365 * 10);
+
+                if (!error) {
+                  companyLogoUrl = data.signedUrl;
+                }
+              } catch (error) {
+                console.error("Error generando URL firmada para logo:", error);
+              }
+            }
+          }
+
+          return {
+            ...job,
+            company: {
+              ...job.company,
+              logoUrl: companyLogoUrl,
+            },
+            applicationsCount: job._count.applications,
+          };
+        })
+      );
+
+      const totalPages = Math.ceil(totalCount / parseInt(limit));
+
+      return res.json({
+        jobs: jobsWithProcessedLogos,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages,
+          totalCount,
+          hasNextPage: parseInt(page) < totalPages,
+          hasPreviousPage: parseInt(page) > 1,
+        },
+      });
+    } catch (err) {
+      console.error("Error obteniendo ofertas para trabajador:", err);
+      return res.status(500).json({ error: "Error en el servidor" });
+    }
+  }
+);
+
+myRouter.get(
+  "/worker/jobs/:jobId",
+  authMiddleware,
+  roleMiddleware(["WORKER"]),
+  async (req, res) => {
+    try {
+      const { jobId } = req.params;
+
+      const job = await prisma.job.findUnique({
+        where: { id: jobId },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          location: true,
+          requiredSkills: true,
+          duration: true,
+          salary: true,
+          imageUrl: true,
+          createdAt: true,
+          company: {
+            select: {
+              name: true,
+              logoUrl: true,
+              contactInfo: true,
+            },
+          },
+          _count: {
+            select: {
+              applications: true,
+            },
+          },
+        },
+      });
+
+      if (!job) {
+        return res.status(404).json({ error: "Oferta no encontrada" });
+      }
+
+      let companyLogoUrl = null;
+      if (job.company.logoUrl) {
+        const isFullUrl = job.company.logoUrl.startsWith("http");
+        if (isFullUrl) {
+          companyLogoUrl = job.company.logoUrl;
+        } else {
+          try {
+            const { data, error } = await supabaseAdmin.storage
+              .from("user-documents")
+              .createSignedUrl(job.company.logoUrl, 60 * 60 * 24 * 365 * 10);
+
+            if (!error) {
+              companyLogoUrl = data.signedUrl;
+            }
+          } catch (error) {
+            console.error("Error generando URL firmada para logo:", error);
+          }
+        }
+      }
+
+      return res.json({
+        job: {
+          ...job,
+          company: {
+            ...job.company,
+            logoUrl: companyLogoUrl,
+          },
+          applicationsCount: job._count.applications,
+        },
+      });
+    } catch (err) {
+      console.error("Error obteniendo detalle de oferta:", err);
+      return res.status(500).json({ error: "Error en el servidor" });
+    }
+  }
+);

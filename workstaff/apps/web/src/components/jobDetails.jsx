@@ -203,7 +203,7 @@ export default function JobDetailsView() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader>
@@ -220,7 +220,7 @@ export default function JobDetailsView() {
                 </div>
               )}
               <div className="prose dark:prose-invert max-w-none">
-                <p className="text-muted-foreground whitespace-pre-wrap">
+                <p className="text-muted-foreground whitespace-pre-wrap break-words">
                   {job.description}
                 </p>
               </div>

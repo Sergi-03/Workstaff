@@ -16,22 +16,23 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import {
   Search,
-  Plus,
   MapPin,
   Euro,
   Calendar,
   Eye,
-  Edit,
-  Clock,
   Briefcase,
+  Building,
+  Clock,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 
-export default function CompanyJobsView() {
+export default function WorkerJobsView() {
   const router = useRouter();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
@@ -44,7 +45,7 @@ export default function CompanyJobsView() {
     const token = localStorage.getItem("access_token");
     const role = localStorage.getItem("role");
 
-    if (!token || role !== "COMPANY") {
+    if (!token || role !== "WORKER") {
       router.replace("/login");
       return;
     }
@@ -52,18 +53,19 @@ export default function CompanyJobsView() {
     loadJobs();
   }, [router]);
 
-  const loadJobs = async (page = 1, search = "") => {
+  const loadJobs = async (page = 1, search = "", location = "") => {
     setLoading(true);
     try {
       const token = localStorage.getItem("access_token");
       const queryParams = new URLSearchParams({
         page: page.toString(),
-        limit: "6",
+        limit: "9",
         ...(search && { search }),
+        ...(location && { location }),
       });
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/company/jobs?${queryParams}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/worker/jobs?${queryParams}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -88,15 +90,15 @@ export default function CompanyJobsView() {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    loadJobs(1, searchTerm);
+    loadJobs(1, searchTerm, locationFilter);
   };
 
   const handlePageChange = (newPage) => {
-    loadJobs(newPage, searchTerm);
+    loadJobs(newPage, searchTerm, locationFilter);
   };
 
   const formatSalary = (salary) => {
-    if (!salary) return "No especificado";
+    if (!salary) return "Salario no especificado";
     return `${salary.toLocaleString()}€/mes`;
   };
 
@@ -106,13 +108,6 @@ export default function CompanyJobsView() {
       month: "short",
       day: "numeric",
     });
-  };
-
-  const getStatusBadge = (count, type) => {
-    if (type === "applications") {
-      return count > 0 ? "default" : "secondary";
-    }
-    return count > 0 ? "default" : "outline";
   };
 
   if (loading && jobs.length === 0) {
@@ -130,19 +125,28 @@ export default function CompanyJobsView() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-2">
           <Briefcase className="h-6 w-6" />
-          <h1 className="text-2xl font-bold">Mis Ofertas de Trabajo</h1>
+          <h1 className="text-2xl font-bold">Ofertas de Trabajo</h1>
         </div>
       </div>
 
       <Card>
         <CardContent className="pt-6">
-          <form onSubmit={handleSearch} className="flex gap-2">
+          <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar ofertas..."
+                placeholder="Puesto, palabra clave, empresa"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <div className="relative sm:w-64">
+              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Ubicación..."
+                value={locationFilter}
+                onChange={(e) => setLocationFilter(e.target.value)}
                 className="pl-10"
               />
             </div>
@@ -158,52 +162,47 @@ export default function CompanyJobsView() {
           <CardContent className="pt-6">
             <div className="text-center py-12">
               <Briefcase className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-2 text-sm font-semibold">No hay ofertas</h3>
+              <h3 className="mt-2 text-sm font-semibold">No hay ofertas disponibles</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                {searchTerm
-                  ? "No se encontraron ofertas con esos criterios."
-                  : "Comienza creando tu primera oferta de trabajo."}
+                {searchTerm || locationFilter
+                  ? "No se encontraron ofertas con esos criterios. Intenta con otros filtros."
+                  : "Aún no hay ofertas de trabajo publicadas."}
               </p>
-              {!searchTerm && (
-                <Button
-                  onClick={() => router.push("/company/jobs/create")}
-                  className="mt-4 bg-red-500 hover:bg-red-600 text-white"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Crear Primera Oferta
-                </Button>
-              )}
             </div>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 grid-cols-1  sm:grid-cols-2 lg:grid-cols-3">
           {jobs.map((job) => {
             const skills = job.requiredSkills || [];
 
             return (
               <Card
                 key={job.id}
-                className="group hover:shadow-lg transition-shadow"
+                className="group hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => router.push(`/worker/jobs/${job.id}`)}
               >
                 <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
                       <CardTitle className="line-clamp-2 group-hover:text-red-600 transition-colors">
                         {job.title}
                       </CardTitle>
                       <CardDescription className="flex items-center gap-1 mt-2">
-                        <MapPin className="h-3 w-3" />
-                        {job.location}
+                        <Building className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{job.company.name}</span>
                       </CardDescription>
                     </div>
-                    {job.imageUrl && (
-                      <div className="ml-2">
-                        <img
-                          src={job.imageUrl}
-                          alt={job.title}
-                          className="w-12 h-12 rounded-lg object-cover"
-                        />
+                    {job.company.logoUrl ? (
+                      <Avatar className="h-12 w-12 shrink-0">
+                        <AvatarImage src={job.company.logoUrl} />
+                        <AvatarFallback>
+                          {job.company.name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                        <Building className="h-6 w-6 text-muted-foreground" />
                       </div>
                     )}
                   </div>
@@ -235,101 +234,46 @@ export default function CompanyJobsView() {
                   )}
 
                   <div className="space-y-2 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{job.location}</span>
+                    </div>
+
                     {job.salary && (
                       <div className="flex items-center gap-2">
-                        <Euro className="h-3 w-3" />
-                        {formatSalary(job.salary)}
+                        <Euro className="h-3 w-3 shrink-0" />
+                        <span>{formatSalary(job.salary)}</span>
                       </div>
                     )}
+
                     {job.duration && (
                       <div className="flex items-center gap-2">
-                        <Calendar className="h-3 w-3" />
-                        {job.duration}
+                        <Calendar className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{job.duration}</span>
                       </div>
                     )}
+
                     <div className="flex items-center gap-2">
-                      <Clock className="h-3 w-3" />
-                      Publicado {formatDate(job.createdAt)}
+                      <Clock className="h-3 w-3 shrink-0" />
+                      <span>Publicado {formatDate(job.createdAt)}</span>
                     </div>
                   </div>
 
                   <Separator />
 
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-4">
-                      <Badge
-                        variant={getStatusBadge(
-                          job.applicationsCount,
-                          "applications"
-                        )}
-                        className="text-xs"
-                      >
-                        {job.applicationsCount} aplicaciones
-                      </Badge>
-                      <Badge
-                        variant={getStatusBadge(
-                          job.contractsCount,
-                          "contracts"
-                        )}
-                        className="text-xs"
-                      >
-                        {job.contractsCount} contratos
-                      </Badge>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Users className="h-3 w-3" />
+                      <span>{job.applicationsCount} candidatos</span>
                     </div>
-                  </div>
-
-                  {job.applications.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground">
-                        Aplicaciones recientes:
-                      </p>
-                      <div className="flex -space-x-2">
-                        {job.applications
-                          .slice(0, 3)
-                          .map((application, index) => (
-                            <Avatar
-                              key={application.id}
-                              className="w-6 h-6 border-2 border-background"
-                            >
-                              <AvatarImage src={application.worker.photoUrl} />
-                              <AvatarFallback className="text-xs">
-                                {application.worker.fullname
-                                  .charAt(0)
-                                  .toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                          ))}
-                        {job.applications.length > 3 && (
-                          <div className="w-6 h-6 rounded-full bg-muted border-2 border-background flex items-center justify-center">
-                            <span className="text-xs font-medium">
-                              +{job.applications.length - 3}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex gap-2 pt-2">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => router.push(`/company/jobs/${job.id}`)}
-                      className="flex-1"
+                      className=""
                     >
                       <Eye className="h-3 w-3 mr-1" />
                       Ver Detalles
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        router.push(`/company/jobs/${job.id}/edit`)
-                      }
-                      className="flex-1"
-                    >
-                      <Edit className="h-3 w-3 mr-1" />
-                      Editar
                     </Button>
                   </div>
                 </CardContent>
