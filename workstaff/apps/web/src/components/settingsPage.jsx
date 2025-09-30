@@ -83,24 +83,58 @@ export function SettingsPage() {
   const [backupCodes, setBackupCodes] = useState([]);
   const [passwordFor2FA, setPasswordFor2FA] = useState("");
   const [codeForDisable, setCodeForDisable] = useState("");
-
+  const [loadingProfile, setLoadingProfile] = useState(true);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const { token, role: userRole } = getAuth();
-    if (!token) {
-      router.replace("/login");
-      return;
-    }
+    const init = async () => {
+      const { token, role: userRole } = getAuth();
+      if (!token) {
+        router.replace("/login");
+        return;
+      }
 
-    setRole(userRole);
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
+      setRole(userRole);
 
-    loadTwoFactorStatus();
+      const [profile] = await Promise.all([
+        fetchUserProfile(token, userRole),
+        loadTwoFactorStatus(),
+      ]);
+      setUser(profile);
+      setLoadingProfile(false);
+    };
+
+    init();
   }, [router]);
+
+  const fetchUserProfile = async (token, role) => {
+    try {
+      let profileData = null;
+
+      if (role === "WORKER") {
+        profileData = await apiFetch("/api/auth/worker/profile");
+        return {
+          fullname: profileData?.fullname || "Trabajador",
+          email: profileData?.user?.email || "usuario@workstaff.com",
+          photoUrl: profileData?.photoUrl || "",
+          role,
+        };
+      } else if (role === "COMPANY") {
+        profileData = await apiFetch("/api/auth/company/profile");
+        return {
+          fullname: profileData?.name || "Empresa",
+          email: profileData?.user?.email || "empresa@workstaff.com",
+          photoUrl: profileData?.logoUrl || "",
+          role,
+        };
+      }
+      return null;
+    } catch (err) {
+      console.error("Error cargando perfil:", err);
+      toast.error("Error cargando perfil");
+      return null;
+    }
+  };
 
   const loadTwoFactorStatus = async () => {
     try {
@@ -331,7 +365,7 @@ export function SettingsPage() {
       : "Configuración - Empresa";
   };
 
-  if (!user) {
+  if (loadingProfile) {
     return (
       <div className="animate-fade-in-up p-6 max-w-7xl mx-auto">
         <div className="flex justify-center items-center h-64">
@@ -485,7 +519,7 @@ export function SettingsPage() {
                   : "Agrega una capa extra de seguridad a tu cuenta"}
               </div>
             </div>
-            <div className="flex w-full justify-center sm:w-auto sm:justify-end">
+            <div className="flex w-full gap-3 justify-center sm:w-auto sm:justify-end">
               {!twoFactorStatus.enabled ? (
                 <Button onClick={handleSetup2FA} disabled={loading}>
                   {loading ? "Configurando..." : "Configurar"}

@@ -37,6 +37,47 @@ export function LoginForm({ className, ...props }) {
     resolver: zodResolver(twoFactorSchema),
   });
 
+  const fetchUserProfile = async (token, role) => {
+    try {
+      let profileData = null;
+
+      if (role === "WORKER") {
+        profileData = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/auth/worker/profile`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        ).then((r) => r.json());
+
+        return {
+          fullname: profileData?.fullname || "Trabajador",
+          email: profileData?.user?.email || "usuario@workstaff.com",
+          photoUrl: profileData?.photoUrl || "",
+          role,
+        };
+      } else if (role === "COMPANY") {
+        profileData = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/auth/company/profile`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        ).then((r) => r.json());
+
+        return {
+          fullname: profileData?.name || "Empresa",
+          email: profileData?.user?.email || "empresa@workstaff.com",
+          photoUrl: profileData?.logoUrl || "",
+          role,
+        };
+      }
+      return null;
+    } catch (err) {
+      console.error("Error cargando perfil:", err);
+      toast.error("Error cargando perfil");
+      return null;
+    }
+  };
+
   const onSubmit = async (data) => {
     setUploading(true);
     try {
@@ -59,7 +100,7 @@ export function LoginForm({ className, ...props }) {
       if (result.requires2FA) {
         setRequires2FA(true);
         setUserEmail(result.email);
-        setUserPassword(data.password); 
+        setUserPassword(data.password);
         toast.info("Ingresa tu código de autenticación de dos factores");
         return;
       }
@@ -67,19 +108,9 @@ export function LoginForm({ className, ...props }) {
       localStorage.setItem("access_token", result.token);
       localStorage.setItem("role", result.role);
       localStorage.setItem("userId", result.userId);
-      localStorage.setItem(
-        "user",
-        JSON.stringify({
-          fullname: result.user?.fullname || "Usuario",
-          name: result.user?.name || "Usuario",
-          cif: result.user?.cif || "Cif",
-          email: result.user?.contactInfo || result.user?.email || "Email",
-          photoUrl: result.user?.photoUrl || "",
-          idPhotoUrl: result.user?.idPhotoUrl || "Id",
-          logoUrl: result.user?.logoUrl || "",
-          role: result.role || "",
-        })
-      );
+      const userProfile = await fetchUserProfile(result.token, result.role);
+      localStorage.setItem("user", JSON.stringify(userProfile));
+      redirectUser(result);
 
       toast.success("Sesión iniciada correctamente!");
       redirectUser(result);
@@ -117,19 +148,9 @@ export function LoginForm({ className, ...props }) {
       localStorage.setItem("access_token", result.token);
       localStorage.setItem("role", result.role);
       localStorage.setItem("userId", result.userId);
-      localStorage.setItem(
-        "user",
-        JSON.stringify({
-          fullname: result.user?.fullname || "Usuario",
-          name: result.user?.name || "Usuario",
-          cif: result.user?.cif || "Cif",
-          email: result.user?.contactInfo || result.user?.email || "Email",
-          photoUrl: result.user?.photoUrl || "",
-          idPhotoUrl: result.user?.idPhotoUrl || "Id",
-          logoUrl: result.user?.logoUrl || "",
-          role: result.role || "",
-        })
-      );
+      const userProfile = await fetchUserProfile(result.token, result.role);
+      localStorage.setItem("user", JSON.stringify(userProfile));
+      redirectUser(result);
 
       toast.success("Verificación 2FA exitosa!");
       redirectUser(result);
