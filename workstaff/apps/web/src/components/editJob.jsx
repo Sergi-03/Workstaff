@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import Image from "next/image";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -243,6 +244,16 @@ export default function EditJobView() {
 
   return (
     <div className="min-h-screen bg-background select-none">
+      <div className="flex items-center justify-center rounded-md">
+        <Image
+          width={150}
+          height={200}
+          src="/logo.png"
+          alt="logo workstaff"
+          draggable={false}
+          className="select-none outline-none"
+        />
+      </div>
       <div className="max-w-7xl mx-auto p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div className="flex items-center gap-3">

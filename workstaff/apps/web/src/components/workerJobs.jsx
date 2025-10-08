@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import Image from "next/image";
 import {
   Card,
   CardContent,
@@ -122,6 +123,16 @@ export default function WorkerJobsView() {
 
   return (
     <div className="animate-fade-in-up p-6 max-w-7xl mx-auto space-y-6 select-none">
+      <div className="flex items-center justify-center rounded-md">
+        <Image
+          width={150}
+          height={200}
+          src="/logo.png"
+          alt="logo workstaff"
+          draggable={false}
+          className="select-none outline-none"
+        />
+      </div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-2">
           <Briefcase className="h-6 w-6" />
@@ -131,7 +142,10 @@ export default function WorkerJobsView() {
 
       <Card>
         <CardContent className="pt-6">
-          <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2">
+          <form
+            onSubmit={handleSearch}
+            className="flex flex-col sm:flex-row gap-2"
+          >
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -162,7 +176,9 @@ export default function WorkerJobsView() {
           <CardContent className="pt-6">
             <div className="text-center py-12">
               <Briefcase className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-2 text-sm font-semibold">No hay ofertas disponibles</h3>
+              <h3 className="mt-2 text-sm font-semibold">
+                No hay ofertas disponibles
+              </h3>
               <p className="mt-1 text-sm text-muted-foreground">
                 {searchTerm || locationFilter
                   ? "No se encontraron ofertas con esos criterios. Intenta con otros filtros."

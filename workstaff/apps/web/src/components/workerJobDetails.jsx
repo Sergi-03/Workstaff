@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import Image from "next/image";
 import {
   ArrowLeft,
   MapPin,
@@ -122,6 +123,16 @@ export default function WorkerJobDetailView() {
 
   return (
     <div className="animate-fade-in-up p-6 max-w-6xl mx-auto space-y-6 select-none">
+      <div className="flex items-center justify-center rounded-md">
+        <Image
+          width={150}
+          height={200}
+          src="/logo.png"
+          alt="logo workstaff"
+          draggable={false}
+          className="select-none outline-none"
+        />
+      </div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div className="flex items-start sm:items-center gap-3 flex-1">
           <Button
@@ -216,11 +227,15 @@ export default function WorkerJobDetailView() {
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold truncate">{job.company.name}</div>
+                  <div className="font-semibold truncate">
+                    {job.company.name}
+                  </div>
                   {job.company.contactInfo && (
                     <div className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
                       <Mail className="h-3 w-3 shrink-0" />
-                      <span className="truncate">{job.company.contactInfo}</span>
+                      <span className="truncate">
+                        {job.company.contactInfo}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -250,7 +265,9 @@ export default function WorkerJobDetailView() {
                   <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="font-medium truncate">{job.duration}</div>
-                    <div className="text-sm text-muted-foreground">Duración</div>
+                    <div className="text-sm text-muted-foreground">
+                      Duración
+                    </div>
                   </div>
                 </div>
               )}
@@ -289,7 +306,8 @@ export default function WorkerJobDetailView() {
             <CardContent className="pt-6">
               <div className="text-center space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  Las aplicaciones se gestionarán próximamente mediante un sistema externo
+                  Las aplicaciones se gestionarán próximamente mediante un
+                  sistema externo
                 </p>
                 <Button disabled className="w-full" variant="outline">
                   Aplicar (Próximamente)

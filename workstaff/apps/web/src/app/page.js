@@ -8,7 +8,7 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-  setTimeout(() => router.push("/login"), 4000);
+    setTimeout(() => router.push("/login"), 3000);
   }, [router]);
 
   return (
@@ -23,21 +23,9 @@ export default function Home() {
           className="select-none outline-none mx-auto"
         />
 
-        <h1 className="text-[1.5rem] mt-[-40px] mb-6 text-center select-none outline-none font-bold text-gray-300">
+        <h1 className="text-[2.0rem] mt-[-40px] mb-6 text-center select-none outline-none font-bold text-muted-foreground">
           GENERA MÁS INGRESOS HACIENDO CLICK
         </h1>
-
-        <p className="text-gray-300 text-lg mb-8 select-none">
-          Conectamos trabajadores de hostelería con empresas al instante
-        </p>
-
-        <div className="flex items-center justify-center gap-4 text-gray-300 text-base mb-8 select-none">
-          <span>Contratos automáticos</span>
-          <span className="text-red-500">•</span>
-          <span>Pagos seguros</span>
-          <span className="text-red-500">•</span>
-          <span>Disponibilidad 24/7</span>
-        </div>
 
         <div className="text-sm italic select-none flex items-center justify-center gap-1">
           <span>Accediendo</span>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
+import Image from "next/image";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -377,6 +378,16 @@ export function SettingsPage() {
 
   return (
     <div className="animate-fade-in-up p-6 max-w-4xl mx-auto space-y-6 select-none">
+      <div className="flex items-center justify-center rounded-md">
+        <Image
+          width={150}
+          height={200}
+          src="/logo.png"
+          alt="logo workstaff"
+          draggable={false}
+          className="select-none outline-none"
+        />
+      </div>
       <div className="flex items-center gap-2 mb-6">
         <Settings className="h-6 w-6" />
         <h1 className="text-2xl font-bold">{getPageTitle()}</h1>

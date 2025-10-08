@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import Image from "next/image";
 
 const workerFAQs = [
   {
@@ -186,11 +187,21 @@ export default function WorkerSupportPage() {
   };
 
   useEffect(() => {
-    document.title = "Centro de soporte | Workstaff"
+    document.title = "Centro de soporte | Workstaff";
   }, []);
 
   return (
     <div className="min-h-screen select-none animate-fade-in-up">
+      <div className="flex items-center justify-center rounded-md">
+        <Image
+          width={150}
+          height={200}
+          src="/logo.png"
+          alt="logo workstaff"
+          draggable={false}
+          className="select-none outline-none"
+        />
+      </div>
       <div className="max-w-4xl mx-auto p-6 space-y-8">
         <div className="text-center space-y-4">
           <div className="flex justify-center">
