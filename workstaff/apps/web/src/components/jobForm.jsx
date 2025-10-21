@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -54,99 +54,86 @@ const jobSchema = z.object({
     .min(3, "La ubicación debe tener al menos 3 caracteres")
     .max(100, "La ubicación no puede exceder 100 caracteres"),
   duration: z.string().optional(),
-  salary: z
-    .string()
-    .optional()
-    .refine((val) => {
-      if (!val || val === "") return true;
-      const num = parseFloat(val);
-      return !isNaN(num) && num >= 0 && num <= 1000000;
-    }, "El salario debe ser un número válido entre 0 y 1,000,000"),
 });
 
 export default function CreateJobForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [skills, setSkills] = useState([]);
-  const [currentSkill, setCurrentSkill] = useState("");
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  const [requiredSkills, setRequiredSkills] = useState([]);
+  const [currentSkillName, setCurrentSkillName] = useState("");
+  const [currentSkillLevel, setCurrentSkillLevel] = useState("BASICO");
+  const [currentSkillWeight, setCurrentSkillWeight] = useState(3);
+  const [currentSkillRequired, setCurrentSkillRequired] = useState(true);
+  const [availableSkills, setAvailableSkills] = useState([]);
 
-  const form = useForm({
-    resolver: zodResolver(jobSchema),
-    defaultValues: {
-      title: "",
-      description: "",
-      location: "",
-      duration: "",
-      salary: "",
-    },
-  });
-
-  const durationOptions = [
-    { value: "1-3 meses", label: "1-3 meses" },
-    { value: "3-6 meses", label: "3-6 meses" },
-    { value: "6-12 meses", label: "6-12 meses" },
-    { value: "Más de 1 año", label: "Más de 1 año" },
-    { value: "Indefinido", label: "Indefinido" },
-    { value: "Por proyecto", label: "Por proyecto" },
+  const SKILL_LEVELS = [
+    { value: "BASICO", label: "Básico" },
+    { value: "INTERMEDIO", label: "Intermedio" },
+    { value: "AVANZADO", label: "Avanzado" },
+    { value: "EXPERTO", label: "Experto" },
   ];
 
-  const addSkill = () => {
-    const trimmedSkill = currentSkill.trim();
-    if (trimmedSkill && !skills.includes(trimmedSkill) && skills.length < 10) {
-      setSkills([...skills, trimmedSkill]);
-      setCurrentSkill("");
-    }
-  };
+  useEffect(() => {
+    const loadSkills = async () => {
+      try {
+        const token = localStorage.getItem("access_token");
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/auth/skills`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
 
-  const removeSkill = (skillToRemove) => {
-    setSkills(skills.filter((skill) => skill !== skillToRemove));
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      addSkill();
-    }
-  };
-
-  const handleImageChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error("La imagen no puede superar los 5MB");
-        return;
+        if (response.ok) {
+          const data = await response.json();
+          setAvailableSkills(data.skills);
+        }
+      } catch (err) {
+        console.error("Error cargando skills:", err);
+        toast.error("Error cargando habilidades disponibles");
       }
+    };
 
-      const allowedTypes = [
-        "image/jpeg",
-        "image/jpg",
-        "image/png",
-        "image/webp",
-      ];
-      if (!allowedTypes.includes(file.type)) {
-        toast.error("Solo se permiten imágenes JPG, PNG o WebP");
-        return;
-      }
+    loadSkills();
+  }, []);
 
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
+  const addRequiredSkill = () => {
+    if (!currentSkillName) {
+      toast.error("Selecciona una habilidad");
+      return;
     }
+
+    const skillExists = requiredSkills.find((s) => s.name === currentSkillName);
+    if (skillExists) {
+      toast.error("Esta habilidad ya está añadida");
+      return;
+    }
+
+    setRequiredSkills([
+      ...requiredSkills,
+      {
+        name: currentSkillName,
+        level: currentSkillLevel,
+        weight: currentSkillWeight,
+        isRequired: currentSkillRequired,
+      },
+    ]);
+
+    setCurrentSkillName("");
+    setCurrentSkillLevel("BASICO");
+    setCurrentSkillWeight(3);
+    setCurrentSkillRequired(true);
   };
 
-  const removeImage = () => {
-    setImageFile(null);
-    setImagePreview(null);
+  const removeRequiredSkill = (skillName) => {
+    setRequiredSkills(requiredSkills.filter((s) => s.name !== skillName));
   };
 
   const onSubmit = async (data) => {
-    if (skills.length === 0) {
-      toast.error("Debes añadir al menos una habilidad");
+    if (requiredSkills.length === 0) {
+      toast.error("Debes añadir al menos una habilidad requerida");
       return;
     }
 
@@ -156,14 +143,11 @@ export default function CreateJobForm() {
       formData.append("title", data.title);
       formData.append("description", data.description);
       formData.append("location", data.location);
-      formData.append("requiredSkills", skills.join(","));
+
+      formData.append("requiredSkillsData", JSON.stringify(requiredSkills));
 
       if (data.duration) {
         formData.append("duration", data.duration);
-      }
-
-      if (data.salary) {
-        formData.append("salary", data.salary);
       }
 
       if (imageFile) {
@@ -196,6 +180,59 @@ export default function CreateJobForm() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const form = useForm({
+    resolver: zodResolver(jobSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      location: "",
+      duration: "",
+    },
+  });
+
+  const durationOptions = [
+    { value: "4-8 horas", label: "4-8 horas (1 jornada)" },
+    { value: "16-24 horas", label: "16-24 horas (2-3 días)" },
+    { value: "40 horas", label: "40 horas (1 semana)" },
+    { value: "80 horas", label: "80 horas (2 semanas)" },
+    { value: "160 horas", label: "160 horas (1 mes)" },
+    { value: "320 horas", label: "320 horas (2 meses)" },
+    { value: "A convenir", label: "A convenir" },
+  ];
+
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("La imagen no puede superar los 5MB");
+        return;
+      }
+
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/webp",
+      ];
+      if (!allowedTypes.includes(file.type)) {
+        toast.error("Solo se permiten imágenes JPG, PNG o WebP");
+        return;
+      }
+
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
   };
 
   return (
@@ -291,52 +328,41 @@ export default function CreateJobForm() {
           <CardHeader>
             <CardTitle>Detalles del Contrato</CardTitle>
             <CardDescription>
-              Información sobre duración y compensación (opcional)
+              Duración estimada del trabajo (Salario: 10€/hora)
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Duración
-                </Label>
-                <Select
-                  onValueChange={(value) => form.setValue("duration", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona la duración" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {durationOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Duración estimada
+              </Label>
+              <Select
+                onValueChange={(value) => form.setValue("duration", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona la duración" />
+                </SelectTrigger>
+                <SelectContent>
+                  {durationOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="salary" className="flex items-center gap-2">
-                  <Euro className="h-4 w-4" />
-                  Salario (€/mes)
-                </Label>
-                <Input
-                  id="salary"
-                  type="number"
-                  min="0"
-                  max="1000000"
-                  step="100"
-                  placeholder="2500"
-                  {...form.register("salary")}
-                />
-                {form.formState.errors.salary && (
-                  <p className="text-red-500 text-sm">
-                    {form.formState.errors.salary.message}
-                  </p>
-                )}
+            <div className="bg-muted/50 p-4 rounded-lg">
+              <div className="flex items-center gap-2 text-sm">
+                <Euro className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">Tarifa fija:</span>
+                <span className="text-lg font-bold text-primary">10€/hora</span>
               </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                El salario está establecido en 10€ por hora trabajada según el
+                modelo de WorkStaff
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -345,53 +371,164 @@ export default function CreateJobForm() {
           <CardHeader>
             <CardTitle>Habilidades Requeridas *</CardTitle>
             <CardDescription>
-              Añade las habilidades y competencias necesarias para el puesto
+              Define las habilidades necesarias, el nivel mínimo y la
+              importancia de cada una
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex gap-2">
-              <Input
-                value={currentSkill}
-                onChange={(e) => setCurrentSkill(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Ej: Atención al cliente, Cocina, Limpieza..."
-                className="flex-1"
-                maxLength={30}
-              />
-              <Button
-                type="button"
-                onClick={addSkill}
-                disabled={!currentSkill.trim() || skills.length >= 10}
-                size="icon"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-2">
+              <div className="md:col-span-2">
+                <Label htmlFor="skillName" className="text-xs mb-1 block">
+                  Habilidad
+                </Label>
+                <Select
+                  value={currentSkillName}
+                  onValueChange={setCurrentSkillName}
+                >
+                  <SelectTrigger id="skillName">
+                    <SelectValue placeholder="Selecciona..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(
+                      availableSkills.reduce((acc, skill) => {
+                        if (!acc[skill.category]) acc[skill.category] = [];
+                        acc[skill.category].push(skill.name);
+                        return acc;
+                      }, {})
+                    ).map(([category, skills]) => (
+                      <div key={category}>
+                        <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground">
+                          {category}
+                        </div>
+                        {skills.map((skillName) => (
+                          <SelectItem key={skillName} value={skillName}>
+                            {skillName}
+                          </SelectItem>
+                        ))}
+                      </div>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="skillLevel" className="text-xs mb-1 block">
+                  Nivel mínimo
+                </Label>
+                <Select
+                  value={currentSkillLevel}
+                  onValueChange={setCurrentSkillLevel}
+                >
+                  <SelectTrigger id="skillLevel">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SKILL_LEVELS.map((level) => (
+                      <SelectItem key={level.value} value={level.value}>
+                        {level.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="skillWeight" className="text-xs mb-1 block">
+                  Importancia
+                </Label>
+                <Select
+                  value={currentSkillWeight.toString()}
+                  onValueChange={(v) => setCurrentSkillWeight(parseInt(v))}
+                >
+                  <SelectTrigger id="skillWeight">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1"> Baja</SelectItem>
+                    <SelectItem value="2"> Media-Baja</SelectItem>
+                    <SelectItem value="3"> Media</SelectItem>
+                    <SelectItem value="4"> Alta</SelectItem>
+                    <SelectItem value="5"> Crítica</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="skillRequired" className="text-xs mb-1 block">
+                  Tipo
+                </Label>
+                <Select
+                  value={currentSkillRequired.toString()}
+                  onValueChange={(v) => setCurrentSkillRequired(v === "true")}
+                >
+                  <SelectTrigger id="skillRequired">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">Obligatoria</SelectItem>
+                    <SelectItem value="false">Deseable</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-end">
+                <Button
+                  type="button"
+                  onClick={addRequiredSkill}
+                  className="w-full"
+                  size="sm"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Añadir
+                </Button>
+              </div>
             </div>
 
-            {skills.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {skills.map((skill, index) => (
-                  <Badge
-                    key={index}
-                    variant="secondary"
-                    className="flex items-center gap-1 py-1 px-2"
-                  >
-                    {skill}
-                    <button
-                      type="button"
-                      onClick={() => removeSkill(skill)}
-                      className="ml-1 hover:text-red-500"
+            {requiredSkills.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-sm">
+                  Habilidades añadidas ({requiredSkills.length})
+                </Label>
+                <div className="space-y-2">
+                  {requiredSkills.map((skill, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 border rounded-lg bg-muted/30"
                     >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{skill.name}</span>
+                          {skill.isRequired ? (
+                            <Badge className="text-xs">Obligatoria</Badge>
+                          ) : (
+                            <Badge className="text-xs">Deseable</Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                          <span>Nivel: {skill.level}</span>
+                          <span>·</span>
+                          <span>{"⭐".repeat(skill.weight)} Importancia</span>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeRequiredSkill(skill.name)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
-            <p className="text-sm text-muted-foreground">
-              {skills.length}/10 habilidades añadidas
-            </p>
+            {requiredSkills.length === 0 && (
+              <div className="text-center py-6 text-sm text-muted-foreground">
+                Añade al menos una habilidad requerida para esta oferta
+              </div>
+            )}
           </CardContent>
         </Card>
 

@@ -10,27 +10,25 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
+import WorkerSkillManager from "@/components/workerSkillManager";
 
 function WorkerProfileContent() {
   const router = useRouter();
   const search = useSearchParams();
   const onboarding = search.get("onboarding") === "1";
 
-  const savedUser = typeof window !== "undefined" ? localStorage.getItem("user") : null;
+  const savedUser =
+  typeof window !== "undefined" ? localStorage.getItem("user") : null;
   const initialUser = savedUser ? JSON.parse(savedUser) : {};
 
   const [profile, setProfile] = useState(null);
   const [fullname, setFullname] = useState(initialUser.fullname);
-  const [experience, setExperience] = useState("");
-  const [skills, setSkills] = useState("");
-  const [availability, setAvailability] = useState("");
-  const [certificates, setCertificates] = useState("");
+  const [experienceDescription, setExperienceDescription] = useState("");
+  const [workerAvailability, setWorkerAvailability] = useState("");
+  const [certificate, setCertificate] = useState("");
   const [photoUrl, setPhotoUrl] = useState(initialUser.photoUrl);
   const [idPhotoUrl, setIdPhotoUrl] = useState("");
-
-  const [rolesExperience, setRolesExperience] = useState([]);
   const [location, setLocation] = useState("");
-  const [serviceTypes, setServiceTypes] = useState("");
 
   const [profilePhotoFile, setProfilePhotoFile] = useState(null);
   const [idPhotoFile, setIdPhotoFile] = useState(null);
@@ -52,30 +50,35 @@ function WorkerProfileContent() {
 
     (async () => {
       try {
-        const data = await apiFetch("/api/auth/worker/profile", { method: "GET" });
+        const data = await apiFetch("/api/auth/worker/profile", {
+          method: "GET",
+        });
 
         setProfile(data);
-        setFullname(data.fullname || fullname);
-        setExperience(data.experience || "");
-        setSkills((data.skills || []).join(", "));
-        setAvailability((data.availability || []).join(", "));
-        setCertificates((data.certificates || []).join(", "));
+        setFullname(data.fullname || "");
+
+       
+        setExperienceDescription(data.experienceDescription || "");
+          setWorkerAvailability(
+          Array.isArray(data.workerAvailability) && data.workerAvailability.length > 0
+            ? data.workerAvailability.join(", ")
+            : ""
+        );
+        
+        setCertificate(
+          Array.isArray(data.certificate) && data.certificate.length > 0
+            ? data.certificate.join(", ")
+            : ""
+        );
+
         setPhotoUrl(data.photoUrl || photoUrl);
         setIdPhotoUrl(data.idPhotoUrl || "");
-        setRolesExperience(
-          Object.entries(data.rolesExperience || {}).map(([role, years]) => ({
-            role,
-            years,
-          }))
-        );
         setLocation(data.location || "");
-        setServiceTypes((data.serviceTypes || []).join(", "));
       } catch (err) {
         toast.error(err.message || "Error cargando perfil");
       }
     })();
   }, [router]);
-
 
   const handleProfilePhotoChange = (event) => {
     const file = event.target.files[0];
@@ -173,19 +176,14 @@ function WorkerProfileContent() {
         method: "PUT",
         body: {
           fullname,
-          experience,
-          skills,
-          availability,
-          certificates,
-          rolesExperience: Object.fromEntries(
-            rolesExperience.map((r) => [r.role, r.years])
-          ),
+          experienceDescription,
+          workerAvailability: workerAvailability,
+          certificate: certificate,
           location,
-          serviceTypes,
         },
       });
 
-      toast.success("Perfil actualizado");
+      toast.success("Perfil actualizado correctamente");
       if (onboarding) router.push("/worker/dashboard");
     } catch (err) {
       toast.error(err.message || "Error al actualizar el perfil");
@@ -194,21 +192,17 @@ function WorkerProfileContent() {
     }
   };
 
-  const addRole = () =>
-    setRolesExperience([...rolesExperience, { role: "", years: "" }]);
-
   const completed = [
     fullname,
-    experience,
-    skills,
-    availability,
-    certificates,
+    experienceDescription,
+    workerAvailability,
+    certificate,
     photoUrl,
     idPhotoUrl,
     location,
-    serviceTypes,
-  ].filter(Boolean).length;
-  const progress = Math.min((completed / 9) * 100, 100);
+  ].filter((field) => field && field.length > 0).length;
+
+  const progress = Math.min((completed / 7) * 100, 100);
 
   return (
     <div className="animate-fade-in-up min-h-screen pt-0">
@@ -270,7 +264,7 @@ function WorkerProfileContent() {
 
         <div>
           <label className="block text-sm mb-1">
-            Foto de DNI <span className="text-red-500">*</span>{" "}
+            Foto de DNI <span className="text-red-500">*</span>
           </label>
           {idPhotoUrl ? (
             <img
@@ -313,7 +307,7 @@ function WorkerProfileContent() {
         <form onSubmit={onSave} className="space-y-4">
           <div>
             <label className="block text-sm mb-1">
-              Nombre completo <span className="text-red-500">*</span>{" "}
+              Nombre completo <span className="text-red-500">*</span>
             </label>
             <Input
               value={fullname}
@@ -325,55 +319,31 @@ function WorkerProfileContent() {
           <div>
             <label className="block text-sm mb-1">Experiencia general</label>
             <Textarea
-              value={experience}
-              onChange={(e) => setExperience(e.target.value)}
+              value={experienceDescription}
+              onChange={(e) => setExperienceDescription(e.target.value)}
+              placeholder="Describe tu experiencia laboral, roles anteriores, logros..."
               rows={4}
             />
-          </div>
-
-          <div>
-            <label className="block text-sm mb-1">Experiencia por rol</label>
-            {rolesExperience.map((r, idx) => (
-              <div key={idx} className="flex gap-2 mb-2">
-                <Input
-                  placeholder="Rol (ej: camarero)"
-                  value={r.role}
-                  onChange={(e) => {
-                    const newRoles = [...rolesExperience];
-                    newRoles[idx].role = e.target.value;
-                    setRolesExperience(newRoles);
-                  }}
-                />
-                <Input
-                  placeholder="Tiempo (ej: 2 años)"
-                  value={r.years}
-                  onChange={(e) => {
-                    const newRoles = [...rolesExperience];
-                    newRoles[idx].years = e.target.value;
-                    setRolesExperience(newRoles);
-                  }}
-                />
-              </div>
-            ))}
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={addRole}
-            >
-              + Añadir rol
-            </Button>
+            <p className="text-xs text-muted-foreground mt-1">
+              Ayuda a las empresas a conocer tu trayectoria profesional
+            </p>
           </div>
 
           <div>
             <label className="block text-sm mb-1">
-              Habilidades (separadas por comas)
+              Ubicación / zonas de trabajo{" "}
+              <span className="text-red-500">*</span>
             </label>
             <Input
-              placeholder="Ej: camarero, cocktail, TPV"
-              value={skills}
-              onChange={(e) => setSkills(e.target.value)}
+              placeholder="Ej: Barcelona, Madrid centro, Getafe"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              required
             />
+          </div>
+
+          <div>
+            <WorkerSkillManager />
           </div>
 
           <div>
@@ -381,10 +351,13 @@ function WorkerProfileContent() {
               Disponibilidad (separada por comas)
             </label>
             <Input
-              placeholder="Ej: lunes tarde, viernes noche"
-              value={availability}
-              onChange={(e) => setAvailability(e.target.value)}
+              placeholder="Ej: lunes tarde, viernes noche, fines de semana"
+              value={workerAvailability}
+              onChange={(e) => setWorkerAvailability(e.target.value)}
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              Indica tus horarios disponibles
+            </p>
           </div>
 
           <div>
@@ -392,30 +365,13 @@ function WorkerProfileContent() {
               Certificados (separados por comas)
             </label>
             <Input
-              placeholder="Ej: manipulador alimentos, PRL"
-              value={certificates}
-              onChange={(e) => setCertificates(e.target.value)}
+              placeholder="Ej: manipulador alimentos, PRL, primeros auxilios"
+              value={certificate}
+              onChange={(e) => setCertificate(e.target.value)}
             />
-          </div>
-
-          <div>
-            <label className="block text-sm mb-1">
-              Ubicación / zonas de trabajo
-            </label>
-            <Input
-              placeholder="Ej: Madrid centro, Getafe"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm mb-1">Tipos de servicio</label>
-            <Input
-              placeholder="Ej: camarero, barra, eventos"
-              value={serviceTypes}
-              onChange={(e) => setServiceTypes(e.target.value)}
-            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Certificaciones oficiales que posees
+            </p>
           </div>
 
           <div className="pt-2">

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
@@ -242,13 +242,44 @@ export default function JobDetailsView() {
             <Card>
               <CardHeader>
                 <CardTitle>Habilidades Requeridas</CardTitle>
+                <CardDescription>
+                  Total de {job.requiredSkills.length} habilidades requeridas
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-wrap gap-2">
+                <div className="space-y-3">
                   {(job.requiredSkills || []).map((skill, index) => (
-                    <Badge key={index} variant="secondary">
-                      {skill}
-                    </Badge>
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm">
+                            {skill.name}
+                          </span>
+                          {skill.isRequired ? (
+                            <Badge className="text-xs">
+                              Obligatoria
+                            </Badge>
+                          ) : (
+                            <Badge className="text-xs">
+                              Deseable
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                          <span>
+                            Nivel mínimo: <strong>{skill.level}</strong>
+                          </span>
+                          <span>·</span>
+                          <span>
+                            Importancia:{" "}
+                            <strong>{"⭐".repeat(skill.weight)}</strong>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   ))}
                 </div>
               </CardContent>

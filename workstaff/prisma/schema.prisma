@@ -15,139 +15,282 @@ datasource db {
 }
 
 model User {
-  id String @id @default(cuid())
-  email String @unique
-  role Role
-  createdAt DateTime @default(now())
-  twoFactorEnabled Boolean @default(false)
-  twoFactorSecret String?
+  id                   String          @id @default(cuid())
+  email                String          @unique
+  role                 Role
+  createdAt            DateTime        @default(now())
   twoFactorBackupCodes String[]
-  companyProfile CompanyProfile?
-  workerProfile  WorkerProfile?
-  notifications Notification[]
+  twoFactorEnabled     Boolean         @default(false)
+  twoFactorSecret      String?
+  companyProfile       CompanyProfile?
+  notifications        Notification[]
+  workerProfile        WorkerProfile?
 }
 
 model CompanyProfile {
-  id String @id @default(cuid())
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId String @unique
-  name String
-  cif String
-  contactInfo String
-  logoUrl String?
-  onboardingCompleted Boolean @default(false)
-  jobs Job[]
-  contracts Contract[]
+  id                  String     @id @default(cuid())
+  userId              String     @unique
+  name                String
+  contactInfo         String
+  cif                 String
+  logoUrl             String?
+  onboardingCompleted Boolean    @default(false)
+  user                User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contracts           Contract[]
+  jobs                Job[]
 }
 
 model WorkerProfile {
-  id String @id @default(cuid())
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId String @unique
-  fullname String
-  photoUrl String?
-  idPhotoUrl String     
-  verified Boolean @default(false) 
-  onboardingCompleted Boolean @default(false)
-  certificates String[]
-  experience String?
-  rolesExperience Json?
-  workHistory Json?
-  location String?
-  serviceTypes String[]
-  skills String[]
-  availability String[]
-  reviews Review[]
-  attendances Attendance[]
-  courses CourseProgress[]
-  applications Application[]
-  contracts Contract[]
+  id                     String               @id @default(cuid())
+  userId                 String               @unique
+  fullname               String
+  photoUrl               String?
+  idPhotoUrl             String
+  verified               Boolean              @default(false)
+  location               String?
+  onboardingCompleted    Boolean              @default(false)
+  availableFromDate      DateTime?
+  expectedSalaryMax      Float?
+  expectedSalaryMin      Float?
+  experienceDescription  String?
+  maxCommuteDistance     Int?
+  workerAvailability     String[]             @default([])
+  certificate            String[]             @default([])
+  preferredContractTypes String[]
+  preferredSectors       String[]
+  preferredWorkSchedules String[]
+  salaryCurrency         String               @default("EUR")
+  totalYearsExperience   Int                  @default(0)
+  willingToRelocate      Boolean              @default(false)
+  applications           Application[]
+  attendances            Attendance[]
+  Certificate            Certificate[]
+  contracts              Contract[]
+  courses                CourseProgress[]
+  JobMatch               JobMatch[]
+  reviews                Review[]
+  WorkHistory            WorkHistory[]
+  WorkerAvailability     WorkerAvailability[]
+  user                   User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  WorkerSkill            WorkerSkill[]
 }
 
-
 model Job {
-  id String @id @default(cuid())
-  title String
-  description String
-  location String
-  requiredSkills String[]
-  duration String?
-  salary Float?
-  imageUrl String?
-  createdAt DateTime @default(now())
-  company CompanyProfile @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  companyId String
-  applications Application[]
-  contracts Contract[]
+  id                     String                @id @default(cuid())
+  title                  String
+  description            String
+  location               String
+  duration               String?
+  createdAt              DateTime              @default(now())
+  companyId              String
+  imageUrl               String?
+  contractType           String                @default("INDEFINIDO")
+  expiresAt              DateTime?
+  hoursPerWeek           Int?
+  isFlexible             Boolean               @default(false)
+  isRemote               Boolean               @default(false)
+  minimumYearsExperience Int                   @default(0)
+  requiredCertificates   String[]
+  requiresRelocation     Boolean               @default(false)
+  salaryCurrency         String                @default("EUR")
+  salaryMax              Float?
+  salaryMin              Float?
+  salaryPeriod           String?
+  sector                 String                @default("HOSTELERÍA")
+  startDate              DateTime?
+  status                 JobStatus             @default(ACTIVE)
+  urgency                String                @default("MEDIA")
+  viewsCount             Int                   @default(0)
+  workSchedule           String                @default("INDEFINIDO")
+  applications           Application[]
+  contracts              Contract[]
+  company                CompanyProfile        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  JobMatch               JobMatch[]
+  JobSkillRequirement    JobSkillRequirement[]
+
+  @@index([location, sector])
+  @@index([status, createdAt])
+  @@index([urgency, startDate])
 }
 
 model Application {
-  id String @id @default(cuid())
-  worker WorkerProfile @relation(fields: [workerId], references: [id], onDelete: Cascade)
-  workerId String
-  job Job @relation(fields: [jobId], references: [id])
-  jobId String
-  status ApplicationStatus @default(PENDING)
-  createdAt DateTime @default(now())
+  id        String            @id @default(cuid())
+  workerId  String
+  jobId     String
+  status    ApplicationStatus @default(PENDING)
+  createdAt DateTime          @default(now())
+  job       Job               @relation(fields: [jobId], references: [id])
+  worker    WorkerProfile     @relation(fields: [workerId], references: [id], onDelete: Cascade)
 }
 
 model Review {
- id String @id @default(cuid())
- worker WorkerProfile @relation(fields: [workerId], references: [id], onDelete: Cascade)
- workerId String
- stars Int
- comment String?
- createdAt DateTime @default(now())
+  id        String        @id @default(cuid())
+  workerId  String
+  stars     Int
+  comment   String?
+  createdAt DateTime      @default(now())
+  worker    WorkerProfile @relation(fields: [workerId], references: [id], onDelete: Cascade)
 }
 
 model Attendance {
-  id String @id @default(cuid())
-  worker WorkerProfile @relation(fields: [workerId], references: [id], onDelete: Cascade)
-  workerId String
-  checkIn DateTime
-  checkOut DateTime?
-  location String?
-  supervisorApproved Boolean @default(false)
+  id                 String        @id @default(cuid())
+  workerId           String
+  checkIn            DateTime
+  checkOut           DateTime?
+  location           String?
+  supervisorApproved Boolean       @default(false)
+  worker             WorkerProfile @relation(fields: [workerId], references: [id], onDelete: Cascade)
 }
 
 model Contract {
-  id String @id @default(cuid())
-  worker WorkerProfile @relation(fields: [workerId], references: [id], onDelete: Cascade)
-  workerId String
-  company CompanyProfile @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id        String         @id @default(cuid())
+  workerId  String
   companyId String
-  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  jobId String
-  status ContractStatus @default(DRAFT)
-  createdAt DateTime @default(now())
+  jobId     String
+  status    ContractStatus @default(DRAFT)
+  createdAt DateTime       @default(now())
+  company   CompanyProfile @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  job       Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  worker    WorkerProfile  @relation(fields: [workerId], references: [id], onDelete: Cascade)
 }
 
 model Course {
-  id String @id @default(cuid())
-  title String
+  id         String           @id @default(cuid())
+  title      String
   youtubeUrl String
-  createdAt DateTime @default(now())
-  progress CourseProgress[]
+  createdAt  DateTime         @default(now())
+  progress   CourseProgress[]
 }
 
 model CourseProgress {
-  id String @id @default(cuid())
-  worker WorkerProfile @relation(fields: [workerId], references: [id], onDelete: Cascade)
-  workerId String
-  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  courseId String
-  completed Boolean @default(false)
-  progress Int @default(0) 
+  id        String        @id @default(cuid())
+  workerId  String
+  courseId  String
+  completed Boolean       @default(false)
+  progress  Int           @default(0)
+  course    Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  worker    WorkerProfile @relation(fields: [workerId], references: [id], onDelete: Cascade)
 }
 
 model Notification {
-  id String @id @default(cuid())
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId String
-  message String
-  type String?
-  read Boolean @default(false)
+  id        String   @id @default(cuid())
+  userId    String
+  message   String
+  type      String?
+  read      Boolean  @default(false)
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Certificate {
+  id            String        @id @default(cuid())
+  workerId      String
+  name          String
+  type          String
+  issuedBy      String?
+  issuedDate    DateTime?
+  expiryDate    DateTime?
+  fileUrl       String?
+  verified      Boolean       @default(false)
+  WorkerProfile WorkerProfile @relation(fields: [workerId], references: [id], onDelete: Cascade)
+
+  @@index([type, expiryDate])
+}
+
+model JobMatch {
+  id                       String        @id @default(cuid())
+  jobId                    String
+  workerId                 String
+  overallScore             Float
+  skillsScore              Float
+  locationScore            Float
+  availabilityScore        Float
+  salaryScore              Float
+  experienceScore          Float
+  matchedSkills            Json
+  missingSkills            Json
+  strengths                String[]
+  weaknesses               String[]
+  meetsMinimumRequirements Boolean
+  salaryCompatible         Boolean
+  locationCompatible       Boolean
+  availabilityCompatible   Boolean
+  calculatedAt             DateTime      @default(now())
+  lastUpdated              DateTime
+  isStale                  Boolean       @default(false)
+  Job                      Job           @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  WorkerProfile            WorkerProfile @relation(fields: [workerId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, workerId])
+  @@index([jobId, overallScore])
+  @@index([overallScore, meetsMinimumRequirements])
+  @@index([workerId, overallScore])
+}
+
+model JobSkillRequirement {
+  id           String     @id @default(cuid())
+  jobId        String
+  skillId      String
+  minimumLevel SkillLevel
+  isRequired   Boolean    @default(true)
+  weight       Int        @default(1)
+  Job          Job        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  Skill        Skill      @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, skillId])
+  @@index([jobId, isRequired])
+}
+
+model Skill {
+  id                  String                @id @default(cuid())
+  name                String                @unique
+  category            String
+  JobSkillRequirement JobSkillRequirement[]
+  WorkerSkill         WorkerSkill[]
+
+  @@index([category])
+}
+
+model WorkHistory {
+  id            String        @id @default(cuid())
+  workerId      String
+  companyName   String
+  position      String
+  startDate     DateTime
+  endDate       DateTime?
+  isCurrent     Boolean       @default(false)
+  description   String?
+  skillsUsed    String[]
+  WorkerProfile WorkerProfile @relation(fields: [workerId], references: [id], onDelete: Cascade)
+
+  @@index([workerId, startDate])
+}
+
+model WorkerAvailability {
+  id            String        @id @default(cuid())
+  workerId      String
+  dayOfWeek     Int
+  startTime     String
+  endTime       String
+  isFlexible    Boolean       @default(false)
+  WorkerProfile WorkerProfile @relation(fields: [workerId], references: [id], onDelete: Cascade)
+
+  @@index([workerId, dayOfWeek])
+}
+
+model WorkerSkill {
+  id              String        @id @default(cuid())
+  workerId        String
+  skillId         String
+  level           SkillLevel
+  yearsExperience Int           @default(0)
+  lastUsed        DateTime?
+  verified        Boolean       @default(false)
+  Skill           Skill         @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  WorkerProfile   WorkerProfile @relation(fields: [workerId], references: [id], onDelete: Cascade)
+
+  @@unique([workerId, skillId])
+  @@index([level])
 }
 
 enum Role {
@@ -166,4 +309,20 @@ enum ContractStatus {
   DRAFT
   SIGNED
   CANCELLED
+}
+
+enum JobStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  FILLED
+  EXPIRED
+  CANCELLED
+}
+
+enum SkillLevel {
+  BASICO
+  INTERMEDIO
+  AVANZADO
+  EXPERTO
 }

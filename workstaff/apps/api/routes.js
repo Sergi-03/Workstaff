@@ -12,6 +12,350 @@ import QRCode from "qrcode";
 export const myRouter = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
+function calculateMatchScore(job, worker) {
+  const scores = {
+    skillsScore: 0,
+    locationScore: 0,
+    availabilityScore: 0,
+    salaryScore: 0,
+    experienceScore: 0,
+  };
+
+  const matchedSkills = [];
+  const missingSkills = [];
+  const strengths = [];
+  const weaknesses = [];
+
+  if (job.JobSkillRequirement && job.JobSkillRequirement.length > 0) {
+    let totalWeight = 0;
+    let achievedWeight = 0;
+
+    job.JobSkillRequirement.forEach((req) => {
+      totalWeight += req.weight;
+
+      const workerSkill = worker.WorkerSkill?.find(
+        (ws) => ws.skillId === req.skillId
+      );
+
+      if (workerSkill) {
+        const levelValues = {
+          BASICO: 1,
+          INTERMEDIO: 2,
+          AVANZADO: 3,
+          EXPERTO: 4,
+        };
+        const requiredLevel = levelValues[req.minimumLevel] || 1;
+        const workerLevel = levelValues[workerSkill.level] || 1;
+
+        if (workerLevel >= requiredLevel) {
+          achievedWeight += req.weight;
+          matchedSkills.push({
+            name: req.Skill.name,
+            required: req.minimumLevel,
+            has: workerSkill.level,
+            weight: req.weight,
+          });
+        } else {
+          missingSkills.push({
+            name: req.Skill.name,
+            required: req.minimumLevel,
+            has: workerSkill.level,
+            weight: req.weight,
+          });
+        }
+      } else {
+        missingSkills.push({
+          name: req.Skill.name,
+          required: req.minimumLevel,
+          has: null,
+          weight: req.weight,
+        });
+      }
+    });
+
+    scores.skillsScore =
+      totalWeight > 0 ? (achievedWeight / totalWeight) * 100 : 0;
+  }
+
+  if (job.location && worker.location) {
+    const jobLoc = job.location.toLowerCase().trim();
+    const workerLoc = worker.location.toLowerCase().trim();
+
+    if (jobLoc === workerLoc) {
+      scores.locationScore = 100;
+      strengths.push("Ubicación exacta");
+    } else if (workerLoc.includes(jobLoc) || jobLoc.includes(workerLoc)) {
+      scores.locationScore = 70;
+      strengths.push("Ubicación cercana");
+    } else {
+      scores.locationScore = 30;
+      weaknesses.push("Ubicación distante");
+    }
+  } else {
+    scores.locationScore = 50;
+  }
+
+  const requiredExp = job.minimumYearsExperience || 0;
+  const workerExp = worker.totalYearsExperience || 0;
+
+  if (workerExp >= requiredExp * 1.5) {
+    scores.experienceScore = 100;
+    strengths.push("Experiencia sobresaliente");
+  } else if (workerExp >= requiredExp) {
+    scores.experienceScore = 80;
+    strengths.push("Experiencia suficiente");
+  } else if (workerExp >= requiredExp * 0.7) {
+    scores.experienceScore = 60;
+  } else {
+    scores.experienceScore = 30;
+    weaknesses.push("Experiencia insuficiente");
+  }
+
+  if (
+    job.salaryMin &&
+    job.salaryMax &&
+    worker.expectedSalaryMin &&
+    worker.expectedSalaryMax
+  ) {
+    const jobAvg = (job.salaryMin + job.salaryMax) / 2;
+    const workerAvg = (worker.expectedSalaryMin + worker.expectedSalaryMax) / 2;
+    const diff = Math.abs(jobAvg - workerAvg) / jobAvg;
+
+    if (diff <= 0.1) {
+      scores.salaryScore = 100;
+      strengths.push("Expectativa salarial perfecta");
+    } else if (diff <= 0.2) {
+      scores.salaryScore = 80;
+    } else if (diff <= 0.3) {
+      scores.salaryScore = 60;
+    } else {
+      scores.salaryScore = 40;
+      weaknesses.push("Expectativa salarial distante");
+    }
+  } else {
+    scores.salaryScore = 50;
+  }
+
+  if (job.startDate && worker.availableFromDate) {
+    const jobDate = new Date(job.startDate);
+    const workerDate = new Date(worker.availableFromDate);
+
+    if (workerDate <= jobDate) {
+      scores.availabilityScore = 100;
+      strengths.push("Disponibilidad inmediata");
+    } else {
+      const daysDiff = Math.floor(
+        (workerDate - jobDate) / (1000 * 60 * 60 * 24)
+      );
+      if (daysDiff <= 7) {
+        scores.availabilityScore = 80;
+      } else if (daysDiff <= 30) {
+        scores.availabilityScore = 60;
+      } else {
+        scores.availabilityScore = 40;
+        weaknesses.push("Disponibilidad tardía");
+      }
+    }
+  } else {
+    scores.availabilityScore = 50;
+  }
+
+  const overallScore =
+    scores.skillsScore * 0.4 +
+    scores.locationScore * 0.2 +
+    scores.experienceScore * 0.2 +
+    scores.salaryScore * 0.1 +
+    scores.availabilityScore * 0.1;
+
+  const meetsMinimumRequirements =
+    scores.skillsScore >= 60 && scores.experienceScore >= 50;
+  const salaryCompatible = scores.salaryScore >= 60;
+  const locationCompatible = scores.locationScore >= 60;
+  const availabilityCompatible = scores.availabilityScore >= 60;
+
+  return {
+    overallScore: Math.round(overallScore * 10) / 10,
+    skillsScore: Math.round(scores.skillsScore * 10) / 10,
+    locationScore: Math.round(scores.locationScore * 10) / 10,
+    availabilityScore: Math.round(scores.availabilityScore * 10) / 10,
+    salaryScore: Math.round(scores.salaryScore * 10) / 10,
+    experienceScore: Math.round(scores.experienceScore * 10) / 10,
+    matchedSkills,
+    missingSkills,
+    strengths,
+    weaknesses,
+    meetsMinimumRequirements,
+    salaryCompatible,
+    locationCompatible,
+    availabilityCompatible,
+  };
+}
+
+async function calculateMatchesForJob(jobId) {
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    include: {
+      JobSkillRequirement: {
+        include: { Skill: true },
+      },
+    },
+  });
+
+  if (!job) {
+    console.error(`Job ${jobId} not found`);
+    return;
+  }
+
+  const workers = await prisma.workerProfile.findMany({
+    include: {
+      WorkerSkill: {
+        include: { Skill: true },
+      },
+    },
+  });
+
+  console.log(
+    `Calculating matches for job ${job.title} with ${workers.length} workers`
+  );
+
+  for (const worker of workers) {
+    const matchScore = calculateMatchScore(job, worker);
+
+    await prisma.jobMatch.upsert({
+      where: {
+        jobId_workerId: {
+          jobId: job.id,
+          workerId: worker.id,
+        },
+      },
+      update: {
+        overallScore: matchScore.overallScore,
+        skillsScore: matchScore.skillsScore,
+        locationScore: matchScore.locationScore,
+        availabilityScore: matchScore.availabilityScore,
+        salaryScore: matchScore.salaryScore,
+        experienceScore: matchScore.experienceScore,
+        matchedSkills: matchScore.matchedSkills,
+        missingSkills: matchScore.missingSkills,
+        strengths: matchScore.strengths,
+        weaknesses: matchScore.weaknesses,
+        meetsMinimumRequirements: matchScore.meetsMinimumRequirements,
+        salaryCompatible: matchScore.salaryCompatible,
+        locationCompatible: matchScore.locationCompatible,
+        availabilityCompatible: matchScore.availabilityCompatible,
+        isStale: false,
+        lastUpdated: new Date(),
+      },
+      create: {
+        id: `match_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        jobId: job.id,
+        workerId: worker.id,
+        overallScore: matchScore.overallScore,
+        skillsScore: matchScore.skillsScore,
+        locationScore: matchScore.locationScore,
+        availabilityScore: matchScore.availabilityScore,
+        salaryScore: matchScore.salaryScore,
+        experienceScore: matchScore.experienceScore,
+        matchedSkills: matchScore.matchedSkills,
+        missingSkills: matchScore.missingSkills,
+        strengths: matchScore.strengths,
+        weaknesses: matchScore.weaknesses,
+        meetsMinimumRequirements: matchScore.meetsMinimumRequirements,
+        salaryCompatible: matchScore.salaryCompatible,
+        locationCompatible: matchScore.locationCompatible,
+        availabilityCompatible: matchScore.availabilityCompatible,
+        calculatedAt: new Date(),
+        lastUpdated: new Date(),
+      },
+    });
+  }
+
+  console.log(`Matches calculated for job ${job.title}`);
+}
+
+async function calculateMatchesForWorker(workerId) {
+  const worker = await prisma.workerProfile.findUnique({
+    where: { id: workerId },
+    include: {
+      WorkerSkill: {
+        include: { Skill: true },
+      },
+    },
+  });
+
+  if (!worker) {
+    console.error(`Worker ${workerId} not found`);
+    return;
+  }
+
+  const jobs = await prisma.job.findMany({
+    where: { status: "ACTIVE" },
+    include: {
+      JobSkillRequirement: {
+        include: { Skill: true },
+      },
+    },
+  });
+
+  console.log(
+    `Calculating matches for worker ${worker.fullname} with ${jobs.length} jobs`
+  );
+
+  for (const job of jobs) {
+    const matchScore = calculateMatchScore(job, worker);
+
+    await prisma.jobMatch.upsert({
+      where: {
+        jobId_workerId: {
+          jobId: job.id,
+          workerId: worker.id,
+        },
+      },
+      update: {
+        overallScore: matchScore.overallScore,
+        skillsScore: matchScore.skillsScore,
+        locationScore: matchScore.locationScore,
+        availabilityScore: matchScore.availabilityScore,
+        salaryScore: matchScore.salaryScore,
+        experienceScore: matchScore.experienceScore,
+        matchedSkills: matchScore.matchedSkills,
+        missingSkills: matchScore.missingSkills,
+        strengths: matchScore.strengths,
+        weaknesses: matchScore.weaknesses,
+        meetsMinimumRequirements: matchScore.meetsMinimumRequirements,
+        salaryCompatible: matchScore.salaryCompatible,
+        locationCompatible: matchScore.locationCompatible,
+        availabilityCompatible: matchScore.availabilityCompatible,
+        isStale: false,
+        lastUpdated: new Date(),
+      },
+      create: {
+        id: `match_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        jobId: job.id,
+        workerId: worker.id,
+        overallScore: matchScore.overallScore,
+        skillsScore: matchScore.skillsScore,
+        locationScore: matchScore.locationScore,
+        availabilityScore: matchScore.availabilityScore,
+        salaryScore: matchScore.salaryScore,
+        experienceScore: matchScore.experienceScore,
+        matchedSkills: matchScore.matchedSkills,
+        missingSkills: matchScore.missingSkills,
+        strengths: matchScore.strengths,
+        weaknesses: matchScore.weaknesses,
+        meetsMinimumRequirements: matchScore.meetsMinimumRequirements,
+        salaryCompatible: matchScore.salaryCompatible,
+        locationCompatible: matchScore.locationCompatible,
+        availabilityCompatible: matchScore.availabilityCompatible,
+        calculatedAt: new Date(),
+        lastUpdated: new Date(),
+      },
+    });
+  }
+
+  console.log(`Matches calculated for worker ${worker.fullname}`);
+}
+
 myRouter.post(
   "/register",
   upload.fields([
@@ -784,14 +1128,11 @@ myRouter.put(
     try {
       const {
         fullname,
-        experience,
-        skills,
-        availability,
-        certificates,
-        rolesExperience,
+        experienceDescription,
+        workerAvailability,
+        certificate,
         workHistory,
         location,
-        serviceTypes,
       } = req.body;
 
       const parseToArray = (val) => {
@@ -808,17 +1149,14 @@ myRouter.put(
 
       const data = {};
       if (fullname !== undefined) data.fullname = fullname;
-      if (experience !== undefined) data.experience = experience;
-      if (skills !== undefined) data.skills = parseToArray(skills);
-      if (availability !== undefined)
-        data.availability = parseToArray(availability);
-      if (certificates !== undefined)
-        data.certificates = parseToArray(certificates);
-      if (rolesExperience !== undefined) data.rolesExperience = rolesExperience;
+      if (experienceDescription !== undefined)
+        data.experienceDescription = experienceDescription;
+      if (workerAvailability !== undefined)
+        data.workerAvailability = parseToArray(workerAvailability);
+      if (certificate !== undefined)
+        data.certificate = parseToArray(certificate);
       if (workHistory !== undefined) data.workHistory = workHistory;
       if (location !== undefined) data.location = location;
-      if (serviceTypes !== undefined)
-        data.serviceTypes = parseToArray(serviceTypes);
 
       const updated = await prisma.workerProfile.update({
         where: { userId: req.appUser.id },
@@ -1073,7 +1411,7 @@ myRouter.post(
   upload.single("image"),
   async (req, res) => {
     try {
-      const { title, description, location, requiredSkills, duration, salary } =
+      const { title, description, location, requiredSkillsData, duration } =
         req.body;
 
       if (!title || !description || !location) {
@@ -1082,14 +1420,36 @@ myRouter.post(
           .json({ error: "Título, descripción y ubicación son obligatorios" });
       }
 
-      const skillsArray = Array.isArray(requiredSkills)
-        ? requiredSkills
-        : requiredSkills
-        ? requiredSkills
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean)
-        : [];
+      let requiredSkillsArray = [];
+      if (requiredSkillsData) {
+        try {
+          requiredSkillsArray = JSON.parse(requiredSkillsData);
+        } catch (e) {
+          return res.status(400).json({ error: "Formato de skills inválido" });
+        }
+      }
+
+      if (requiredSkillsArray.length === 0) {
+        return res
+          .status(400)
+          .json({ error: "Debes añadir al menos una habilidad" });
+      }
+
+      const skillNames = requiredSkillsArray.map((s) => s.name);
+      const existingSkills = await prisma.skill.findMany({
+        where: { name: { in: skillNames } },
+      });
+
+      if (existingSkills.length !== skillNames.length) {
+        const missing = skillNames.filter(
+          (name) => !existingSkills.find((s) => s.name === name)
+        );
+        return res.status(400).json({
+          error: `Skills no encontradas en la base de datos: ${missing.join(
+            ", "
+          )}`,
+        });
+      }
 
       let imageUrl = null;
       if (req.file) {
@@ -1118,27 +1478,663 @@ myRouter.post(
         imageUrl = signedUrlData.signedUrl;
       }
 
-      const job = await prisma.job.create({
-        data: {
-          title,
-          description,
-          location,
-          requiredSkills: skillsArray,
-          duration: duration || null,
-          salary: salary ? parseFloat(salary) : null,
-          company: { connect: { userId: req.appUser.id } },
-          imageUrl,
-        },
+      const companyProfile = await prisma.companyProfile.findUnique({
+        where: { userId: req.appUser.id },
+        select: { id: true },
       });
 
-      return res
-        .status(201)
-        .json({ message: "Oferta creada correctamente", job });
+      if (!companyProfile) {
+        return res
+          .status(404)
+          .json({ error: "Perfil de empresa no encontrado" });
+      }
+
+      const job = await prisma.$transaction(async (tx) => {
+        const newJob = await tx.job.create({
+          data: {
+            title,
+            description,
+            location,
+            duration: duration || null,
+            salaryMin: 10,
+            salaryMax: 10,
+            salaryCurrency: "EUR",
+            salaryPeriod: "HORA",
+            companyId: companyProfile.id,
+            imageUrl,
+          },
+        });
+
+        const skillRelations = requiredSkillsArray.map((skillData) => {
+          const skill = existingSkills.find((s) => s.name === skillData.name);
+          const requirementId = `req_${Date.now()}_${Math.random()
+            .toString(36)
+            .substr(2, 9)}`;
+
+          return {
+            id: requirementId,
+            jobId: newJob.id,
+            skillId: skill.id,
+            minimumLevel: skillData.level,
+            isRequired: skillData.isRequired,
+            weight: skillData.weight,
+          };
+        });
+
+        await tx.jobSkillRequirement.createMany({
+          data: skillRelations,
+        });
+
+        return await tx.job.findUnique({
+          where: { id: newJob.id },
+          include: {
+            JobSkillRequirement: {
+              include: { Skill: true },
+            },
+          },
+        });
+      });
+
+      try {
+        await calculateMatchesForJob(job.id);
+      } catch (matchError) {
+        console.error("Error calculando matches:", matchError);
+      }
+
+      return res.status(201).json({
+        message: "Oferta creada correctamente",
+        job,
+      });
     } catch (err) {
-      console.error(err);
+      console.error("Error creando oferta:", err);
       return res
         .status(500)
         .json({ error: err.message || "Error creando la oferta" });
+    }
+  }
+);
+
+myRouter.put(
+  "/company/jobs/:jobId",
+  authMiddleware,
+  roleMiddleware(["COMPANY"]),
+  upload.single("image"),
+  async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      const {
+        title,
+        description,
+        location,
+        requiredSkillsData,
+        duration,
+      } = req.body;
+
+      const companyProfile = await prisma.companyProfile.findUnique({
+        where: { userId: req.appUser.id },
+        select: { id: true },
+      });
+
+      if (!companyProfile) {
+        return res
+          .status(404)
+          .json({ error: "Perfil de empresa no encontrado" });
+      }
+
+      const job = await prisma.job.findFirst({
+        where: {
+          id: jobId,
+          companyId: companyProfile.id,
+        },
+      });
+
+      if (!job) {
+        return res.status(404).json({ error: "Oferta no encontrada" });
+      }
+
+      if (!title || !description || !location) {
+        return res.status(400).json({
+          error: "Título, descripción y ubicación son obligatorios",
+        });
+      }
+
+      let requiredSkillsArray = [];
+      if (requiredSkillsData) {
+        try {
+          requiredSkillsArray = JSON.parse(requiredSkillsData);
+        } catch (e) {
+          return res.status(400).json({ error: "Formato de skills inválido" });
+        }
+      }
+
+      if (requiredSkillsArray.length === 0) {
+        return res.status(400).json({
+          error: "Debes añadir al menos una habilidad",
+        });
+      }
+
+      const skillNames = requiredSkillsArray.map((s) => s.name);
+      const existingSkills = await prisma.skill.findMany({
+        where: { name: { in: skillNames } },
+      });
+
+      if (existingSkills.length !== skillNames.length) {
+        const missing = skillNames.filter(
+          (name) => !existingSkills.find((s) => s.name === name)
+        );
+        return res.status(400).json({
+          error: `Skills no encontradas: ${missing.join(", ")}`,
+        });
+      }
+
+      let imageUrl = job.imageUrl;
+      if (req.file) {
+        const timestamp = Date.now();
+        const imageId = `job-image-${timestamp}-${Math.random()
+          .toString(36)
+          .substr(2, 9)}`;
+        const fileExt = req.file.originalname.split(".").pop();
+        const filePath = `${req.appUser.id}/jobs/${imageId}.${fileExt}`;
+
+        const { error: uploadError } = await supabaseAdmin.storage
+          .from("user-documents")
+          .upload(filePath, req.file.buffer, {
+            contentType: req.file.mimetype,
+            upsert: true,
+          });
+
+        if (uploadError) throw new Error(uploadError.message);
+
+        const { data: signedUrlData, error: urlError } =
+          await supabaseAdmin.storage
+            .from("user-documents")
+            .createSignedUrl(filePath, 60 * 60 * 24 * 365 * 10);
+
+        if (urlError) throw new Error(urlError.message);
+        imageUrl = signedUrlData.signedUrl;
+      }
+
+      const updatedJob = await prisma.$transaction(async (tx) => {
+        const updated = await tx.job.update({
+          where: { id: jobId },
+          data: {
+            title,
+            description,
+            location,
+            duration: duration || null,
+            salaryMin: 10,
+            salaryMax: 10,
+            salaryCurrency: "EUR",
+            salaryPeriod: "HORA",
+            imageUrl,
+          },
+        });
+
+        await tx.jobSkillRequirement.deleteMany({
+          where: { jobId: updated.id },
+        });
+
+        const skillRelations = requiredSkillsArray.map((skillData) => {
+          const skill = existingSkills.find((s) => s.name === skillData.name);
+          const requirementId = `req_${Date.now()}_${Math.random()
+            .toString(36)
+            .substr(2, 9)}`;
+
+          return {
+            id: requirementId,
+            jobId: updated.id,
+            skillId: skill.id,
+            minimumLevel: skillData.level || "BASICO",
+            isRequired: skillData.isRequired !== false,
+            weight: skillData.weight || 1,
+          };
+        });
+
+        await tx.jobSkillRequirement.createMany({
+          data: skillRelations,
+        });
+
+        return await tx.job.findUnique({
+          where: { id: updated.id },
+          include: {
+            JobSkillRequirement: {
+              include: { Skill: true },
+            },
+          },
+        });
+      });
+
+      try {
+        await calculateMatchesForJob(updatedJob.id);
+      } catch (matchError) {
+        console.error("Error recalculando matches:", matchError);
+      }
+
+      return res.json({
+        message: "Oferta actualizada correctamente",
+        job: updatedJob,
+      });
+    } catch (err) {
+      console.error("Error actualizando oferta:", err);
+      return res.status(500).json({
+        error: err.message || "Error actualizando la oferta",
+      });
+    }
+  }
+);
+
+myRouter.get("/skills", authMiddleware, async (req, res) => {
+  try {
+    const skills = await prisma.skill.findMany({
+      orderBy: [{ category: "asc" }, { name: "asc" }],
+    });
+    return res.json({ skills });
+  } catch (err) {
+    console.error("Error obteniendo skills:", err);
+    return res.status(500).json({ error: "Error en el servidor" });
+  }
+});
+
+myRouter.post("/skills", authMiddleware, async (req, res) => {
+  try {
+    const { name, category } = req.body;
+
+    if (!name || !category) {
+      return res
+        .status(400)
+        .json({ error: "Nombre y categoría son obligatorios" });
+    }
+
+    const existing = await prisma.skill.findUnique({ where: { name } });
+    if (existing) {
+      return res.status(400).json({ error: "Esta skill ya existe" });
+    }
+
+    const skill = await prisma.skill.create({
+      data: { name, category },
+    });
+
+    return res.status(201).json({ skill });
+  } catch (err) {
+    console.error("Error creando skill:", err);
+    return res.status(500).json({ error: "Error en el servidor" });
+  }
+});
+
+myRouter.put(
+  "/worker/skills",
+  authMiddleware,
+  roleMiddleware(["WORKER"]),
+  async (req, res) => {
+    try {
+      const { skills } = req.body;
+
+      if (!Array.isArray(skills)) {
+        return res.status(400).json({ error: "Skills debe ser un array" });
+      }
+
+      const workerProfile = await prisma.workerProfile.findUnique({
+        where: { userId: req.appUser.id },
+        select: { id: true },
+      });
+
+      if (!workerProfile) {
+        return res
+          .status(404)
+          .json({ error: "Perfil de trabajador no encontrado" });
+      }
+
+      await prisma.workerSkill.deleteMany({
+        where: { workerId: workerProfile.id },
+      });
+
+      if (skills.length > 0) {
+        const skillsToCreate = skills.map((s) => ({
+          id: `ws_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          workerId: workerProfile.id,
+          skillId: s.skillId,
+          level: s.level || "BASICO",
+          yearsExperience: s.yearsExperience || 0,
+          verified: false,
+        }));
+
+        await prisma.workerSkill.createMany({
+          data: skillsToCreate,
+        });
+      }
+
+      try {
+        await calculateMatchesForWorker(workerProfile.id);
+      } catch (matchError) {
+        console.error("Error recalculando matches:", matchError);
+      }
+
+      return res.json({ message: "Skills actualizadas correctamente" });
+    } catch (err) {
+      console.error("Error actualizando skills:", err);
+      return res.status(500).json({ error: "Error en el servidor" });
+    }
+  }
+);
+
+myRouter.get(
+  "/worker/skills",
+  authMiddleware,
+  roleMiddleware(["WORKER"]),
+  async (req, res) => {
+    try {
+      const workerProfile = await prisma.workerProfile.findUnique({
+        where: { userId: req.appUser.id },
+        include: {
+          WorkerSkill: {
+            include: {
+              Skill: true,
+            },
+          },
+        },
+      });
+
+      if (!workerProfile) {
+        return res.status(404).json({ error: "Perfil no encontrado" });
+      }
+
+      return res.json({ skills: workerProfile.WorkerSkill });
+    } catch (err) {
+      console.error("Error obteniendo skills:", err);
+      return res.status(500).json({ error: "Error en el servidor" });
+    }
+  }
+);
+
+myRouter.post(
+  "/company/jobs/:jobId/calculate-matches",
+  authMiddleware,
+  roleMiddleware(["COMPANY"]),
+  async (req, res) => {
+    try {
+      const { jobId } = req.params;
+
+      const companyProfile = await prisma.companyProfile.findUnique({
+        where: { userId: req.appUser.id },
+        select: { id: true },
+      });
+
+      if (!companyProfile) {
+        return res
+          .status(404)
+          .json({ error: "Perfil de empresa no encontrado" });
+      }
+
+      const job = await prisma.job.findFirst({
+        where: { id: jobId, companyId: companyProfile.id },
+        include: {
+          JobSkillRequirement: {
+            include: { Skill: true },
+          },
+        },
+      });
+
+      if (!job) {
+        return res.status(404).json({ error: "Oferta no encontrada" });
+      }
+
+      const workers = await prisma.workerProfile.findMany({
+        include: {
+          WorkerSkill: {
+            include: { Skill: true },
+          },
+        },
+      });
+
+      const matches = [];
+
+      for (const worker of workers) {
+        const matchScore = calculateMatchScore(job, worker);
+
+        const match = await prisma.jobMatch.upsert({
+          where: {
+            jobId_workerId: {
+              jobId: job.id,
+              workerId: worker.id,
+            },
+          },
+          update: {
+            overallScore: matchScore.overallScore,
+            skillsScore: matchScore.skillsScore,
+            locationScore: matchScore.locationScore,
+            availabilityScore: matchScore.availabilityScore,
+            salaryScore: matchScore.salaryScore,
+            experienceScore: matchScore.experienceScore,
+            matchedSkills: matchScore.matchedSkills,
+            missingSkills: matchScore.missingSkills,
+            strengths: matchScore.strengths,
+            weaknesses: matchScore.weaknesses,
+            meetsMinimumRequirements: matchScore.meetsMinimumRequirements,
+            salaryCompatible: matchScore.salaryCompatible,
+            locationCompatible: matchScore.locationCompatible,
+            availabilityCompatible: matchScore.availabilityCompatible,
+            isStale: false,
+            lastUpdated: new Date(),
+          },
+          create: {
+            id: `match_${Date.now()}_${Math.random()
+              .toString(36)
+              .substr(2, 9)}`,
+            jobId: job.id,
+            workerId: worker.id,
+            overallScore: matchScore.overallScore,
+            skillsScore: matchScore.skillsScore,
+            locationScore: matchScore.locationScore,
+            availabilityScore: matchScore.availabilityScore,
+            salaryScore: matchScore.salaryScore,
+            experienceScore: matchScore.experienceScore,
+            matchedSkills: matchScore.matchedSkills,
+            missingSkills: matchScore.missingSkills,
+            strengths: matchScore.strengths,
+            weaknesses: matchScore.weaknesses,
+            meetsMinimumRequirements: matchScore.meetsMinimumRequirements,
+            salaryCompatible: matchScore.salaryCompatible,
+            locationCompatible: matchScore.locationCompatible,
+            availabilityCompatible: matchScore.availabilityCompatible,
+            calculatedAt: new Date(),
+            lastUpdated: new Date(),
+          },
+        });
+
+        matches.push(match);
+      }
+
+      return res.json({
+        message: "Matches calculados correctamente",
+        totalMatches: matches.length,
+      });
+    } catch (err) {
+      console.error("Error calculando matches:", err);
+      return res.status(500).json({ error: "Error en el servidor" });
+    }
+  }
+);
+
+myRouter.get(
+  "/company/jobs/:jobId/matches",
+  authMiddleware,
+  roleMiddleware(["COMPANY"]),
+  async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      const { limit = 10, minScore = 0 } = req.query;
+
+      const companyProfile = await prisma.companyProfile.findUnique({
+        where: { userId: req.appUser.id },
+        select: { id: true },
+      });
+
+      if (!companyProfile) {
+        return res
+          .status(404)
+          .json({ error: "Perfil de empresa no encontrado" });
+      }
+
+      const job = await prisma.job.findFirst({
+        where: { id: jobId, companyId: companyProfile.id },
+      });
+
+      if (!job) {
+        return res.status(404).json({ error: "Oferta no encontrada" });
+      }
+
+      const matches = await prisma.jobMatch.findMany({
+        where: {
+          jobId,
+          overallScore: { gte: parseFloat(minScore) },
+        },
+        include: {
+          WorkerProfile: {
+            include: {
+              WorkerSkill: {
+                include: { Skill: true },
+              },
+              user: {
+                select: { email: true },
+              },
+            },
+          },
+        },
+        orderBy: { overallScore: "desc" },
+        take: parseInt(limit),
+      });
+
+      const matchesWithSignedUrls = await Promise.all(
+        matches.map(async (match) => {
+          let photoUrl = null;
+
+          if (match.WorkerProfile.photoUrl) {
+            const isFullUrl = match.WorkerProfile.photoUrl.startsWith("http");
+            if (isFullUrl) {
+              photoUrl = match.WorkerProfile.photoUrl;
+            } else {
+              try {
+                const { data, error } = await supabaseAdmin.storage
+                  .from("user-documents")
+                  .createSignedUrl(
+                    match.WorkerProfile.photoUrl,
+                    60 * 60 * 24 * 365 * 10
+                  );
+
+                if (!error) {
+                  photoUrl = data.signedUrl;
+                }
+              } catch (error) {
+                console.error("Error generando URL firmada:", error);
+              }
+            }
+          }
+
+          return {
+            ...match,
+            WorkerProfile: {
+              ...match.WorkerProfile,
+              photoUrl,
+            },
+          };
+        })
+      );
+
+      return res.json({ matches: matchesWithSignedUrls });
+    } catch (err) {
+      console.error("Error obteniendo matches:", err);
+      return res.status(500).json({ error: "Error en el servidor" });
+    }
+  }
+);
+
+myRouter.get(
+  "/worker/recommended-jobs",
+  authMiddleware,
+  roleMiddleware(["WORKER"]),
+  async (req, res) => {
+    try {
+      const { limit = 10, minScore = 50 } = req.query;
+
+      const workerProfile = await prisma.workerProfile.findUnique({
+        where: { userId: req.appUser.id },
+        select: { id: true },
+      });
+
+      if (!workerProfile) {
+        return res.status(404).json({ error: "Perfil no encontrado" });
+      }
+
+      const matches = await prisma.jobMatch.findMany({
+        where: {
+          workerId: workerProfile.id,
+          overallScore: { gte: parseFloat(minScore) },
+          Job: { status: "ACTIVE" },
+        },
+        include: {
+          Job: {
+            include: {
+              company: {
+                select: {
+                  name: true,
+                  logoUrl: true,
+                },
+              },
+              JobSkillRequirement: {
+                include: {
+                  Skill: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { overallScore: "desc" },
+        take: parseInt(limit),
+      });
+
+      const matchesWithSignedUrls = await Promise.all(
+        matches.map(async (match) => {
+          let logoUrl = null;
+
+          if (match.Job.company.logoUrl) {
+            const isFullUrl = match.Job.company.logoUrl.startsWith("http");
+            if (isFullUrl) {
+              logoUrl = match.Job.company.logoUrl;
+            } else {
+              try {
+                const { data, error } = await supabaseAdmin.storage
+                  .from("user-documents")
+                  .createSignedUrl(
+                    match.Job.company.logoUrl,
+                    60 * 60 * 24 * 365 * 10
+                  );
+
+                if (!error) {
+                  logoUrl = data.signedUrl;
+                }
+              } catch (error) {
+                console.error("Error generando URL firmada:", error);
+              }
+            }
+          }
+
+          return {
+            ...match,
+            Job: {
+              ...match.Job,
+              company: {
+                ...match.Job.company,
+                logoUrl,
+              },
+            },
+          };
+        })
+      );
+
+      return res.json({ matches: matchesWithSignedUrls });
+    } catch (err) {
+      console.error("Error obteniendo trabajos recomendados:", err);
+      return res.status(500).json({ error: "Error en el servidor" });
     }
   }
 );
@@ -1170,11 +2166,6 @@ myRouter.get(
             { title: { contains: search, mode: "insensitive" } },
             { description: { contains: search, mode: "insensitive" } },
             { location: { contains: search, mode: "insensitive" } },
-            {
-              requiredSkills: {
-                hasSome: search.split(" ").filter(Boolean),
-              },
-            },
           ],
         }),
       };
@@ -1187,11 +2178,16 @@ myRouter.get(
             title: true,
             description: true,
             location: true,
-            requiredSkills: true,
             duration: true,
-            salary: true,
+            salaryMin: true,
+            salaryMax: true,
             imageUrl: true,
             createdAt: true,
+            JobSkillRequirement: {
+              include: {
+                Skill: true,
+              },
+            },
             _count: {
               select: {
                 applications: true,
@@ -1224,8 +2220,6 @@ myRouter.get(
 
       const jobsWithProcessedData = await Promise.all(
         jobs.map(async (job) => {
-          let processedImageUrl = job.imageUrl;
-
           const processedApplications = await Promise.all(
             job.applications.map(async (application) => {
               let workerPhotoUrl = null;
@@ -1248,10 +2242,7 @@ myRouter.get(
                       workerPhotoUrl = data.signedUrl;
                     }
                   } catch (error) {
-                    console.error(
-                      "Error generando URL firmada para foto de trabajador:",
-                      error
-                    );
+                    console.error("Error generando URL firmada:", error);
                   }
                 }
               }
@@ -1271,10 +2262,13 @@ myRouter.get(
             title: job.title,
             description: job.description,
             location: job.location,
-            requiredSkills: job.requiredSkills,
+            requiredSkills: job.JobSkillRequirement.map(
+              (req) => req.Skill.name
+            ),
             duration: job.duration,
-            salary: job.salary,
-            imageUrl: processedImageUrl,
+            salaryMin: job.salaryMin,
+            salaryMax: job.salaryMax,
+            imageUrl: job.imageUrl,
             createdAt: job.createdAt,
             applicationsCount: job._count.applications,
             contractsCount: job._count.contracts,
@@ -1296,7 +2290,7 @@ myRouter.get(
         },
       });
     } catch (err) {
-      console.error("Error obteniendo ofertas de empresa:", err);
+      console.error("Error obteniendo ofertas:", err);
       return res.status(500).json({ error: "Error en el servidor" });
     }
   }
@@ -1331,15 +2325,20 @@ myRouter.get(
           title: true,
           description: true,
           location: true,
-          requiredSkills: true,
           duration: true,
-          salary: true,
+          salaryMin: true,
+          salaryMax: true,
           imageUrl: true,
           createdAt: true,
           company: {
             select: {
               name: true,
               logoUrl: true,
+            },
+          },
+          JobSkillRequirement: {
+            include: {
+              Skill: true,
             },
           },
           _count: {
@@ -1358,9 +2357,8 @@ myRouter.get(
                   id: true,
                   fullname: true,
                   photoUrl: true,
-                  skills: true,
-                  experience: true,
                   location: true,
+                  totalYearsExperience: true,
                 },
               },
             },
@@ -1424,13 +2422,19 @@ myRouter.get(
               companyLogoUrl = data.signedUrl;
             }
           } catch (error) {
-            console.error("Error generando URL firmada para logo:", error);
+            console.error("Error generando URL firmada:", error);
           }
         }
       }
 
       const jobWithProcessedData = {
         ...job,
+        requiredSkills: job.JobSkillRequirement.map((req) => ({
+          name: req.Skill.name,
+          level: req.minimumLevel,
+          isRequired: req.isRequired,
+          weight: req.weight,
+        })),
         applicationsCount: job._count.applications,
         contractsCount: job._count.contracts,
         applications: processedApplications,
@@ -1444,127 +2448,6 @@ myRouter.get(
     } catch (err) {
       console.error("Error obteniendo oferta:", err);
       return res.status(500).json({ error: "Error en el servidor" });
-    }
-  }
-);
-
-myRouter.put(
-  "/company/jobs/:jobId",
-  authMiddleware,
-  roleMiddleware(["COMPANY"]),
-  upload.single("image"),
-  async (req, res) => {
-    try {
-      const { jobId } = req.params;
-      const {
-        title,
-        description,
-        location,
-        requiredSkills,
-        duration,
-        salary,
-        removeImage,
-      } = req.body;
-
-      if (!title || !description || !location) {
-        return res.status(400).json({
-          error: "Título, descripción y ubicación son obligatorios",
-        });
-      }
-
-      const companyProfile = await prisma.companyProfile.findUnique({
-        where: { userId: req.appUser.id },
-        select: { id: true },
-      });
-
-      if (!companyProfile) {
-        return res
-          .status(404)
-          .json({ error: "Perfil de empresa no encontrado" });
-      }
-
-      const existingJob = await prisma.job.findFirst({
-        where: {
-          id: jobId,
-          companyId: companyProfile.id,
-        },
-        select: { id: true, imageUrl: true },
-      });
-
-      if (!existingJob) {
-        return res.status(404).json({ error: "Oferta no encontrada" });
-      }
-
-      let skillsArray = [];
-      if (requiredSkills) {
-        if (Array.isArray(requiredSkills)) {
-          skillsArray = requiredSkills;
-        } else if (typeof requiredSkills === "string") {
-          try {
-            skillsArray = JSON.parse(requiredSkills);
-          } catch {
-            skillsArray = requiredSkills
-              .split(",")
-              .map((s) => s.trim())
-              .filter(Boolean);
-          }
-        }
-      }
-
-      let imageUrl = existingJob.imageUrl;
-
-      if (removeImage === "true") {
-        imageUrl = null;
-      }
-
-      if (req.file) {
-        const timestamp = Date.now();
-        const imageId = `job-image-${timestamp}-${Math.random()
-          .toString(36)
-          .substr(2, 9)}`;
-        const fileExt = req.file.originalname.split(".").pop();
-        const filePath = `${req.appUser.id}/jobs/${imageId}.${fileExt}`;
-
-        const { error: uploadError } = await supabaseAdmin.storage
-          .from("user-documents")
-          .upload(filePath, req.file.buffer, {
-            contentType: req.file.mimetype,
-            upsert: true,
-          });
-
-        if (uploadError) throw new Error(uploadError.message);
-
-        const { data: signedUrlData, error: urlError } =
-          await supabaseAdmin.storage
-            .from("user-documents")
-            .createSignedUrl(filePath, 60 * 60 * 24 * 365 * 10);
-
-        if (urlError) throw new Error(urlError.message);
-        imageUrl = signedUrlData.signedUrl;
-      }
-
-      const updatedJob = await prisma.job.update({
-        where: { id: jobId },
-        data: {
-          title,
-          description,
-          location,
-          requiredSkills: skillsArray,
-          duration: duration || null,
-          salary: salary ? parseFloat(salary) : null,
-          imageUrl,
-        },
-      });
-
-      return res.json({
-        message: "Oferta actualizada correctamente",
-        job: updatedJob,
-      });
-    } catch (err) {
-      console.error("Error actualizando oferta:", err);
-      return res.status(500).json({
-        error: err.message || "Error actualizando la oferta",
-      });
     }
   }
 );
@@ -1635,10 +2518,11 @@ myRouter.get(
   roleMiddleware(["WORKER"]),
   async (req, res) => {
     try {
-      const { page = 1, limit = 9, search = "", location = "", skills = "" } = req.query;
+      const { page = 1, limit = 9, search = "", location = "" } = req.query;
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
       const whereClause = {
+        status: "ACTIVE",
         ...(search && {
           OR: [
             { title: { contains: search, mode: "insensitive" } },
@@ -1647,11 +2531,6 @@ myRouter.get(
         }),
         ...(location && {
           location: { contains: location, mode: "insensitive" },
-        }),
-        ...(skills && {
-          requiredSkills: {
-            hasSome: skills.split(",").map(s => s.trim()).filter(Boolean),
-          },
         }),
       };
 
@@ -1663,15 +2542,20 @@ myRouter.get(
             title: true,
             description: true,
             location: true,
-            requiredSkills: true,
             duration: true,
-            salary: true,
+            salaryMin: true,
+            salaryMax: true,
             imageUrl: true,
             createdAt: true,
             company: {
               select: {
                 name: true,
                 logoUrl: true,
+              },
+            },
+            JobSkillRequirement: {
+              include: {
+                Skill: true,
               },
             },
             _count: {
@@ -1690,7 +2574,7 @@ myRouter.get(
       const jobsWithProcessedLogos = await Promise.all(
         jobs.map(async (job) => {
           let companyLogoUrl = null;
-          
+
           if (job.company.logoUrl) {
             const isFullUrl = job.company.logoUrl.startsWith("http");
             if (isFullUrl) {
@@ -1699,19 +2583,25 @@ myRouter.get(
               try {
                 const { data, error } = await supabaseAdmin.storage
                   .from("user-documents")
-                  .createSignedUrl(job.company.logoUrl, 60 * 60 * 24 * 365 * 10);
+                  .createSignedUrl(
+                    job.company.logoUrl,
+                    60 * 60 * 24 * 365 * 10
+                  );
 
                 if (!error) {
                   companyLogoUrl = data.signedUrl;
                 }
               } catch (error) {
-                console.error("Error generando URL firmada para logo:", error);
+                console.error("Error generando URL firmada:", error);
               }
             }
           }
 
           return {
             ...job,
+            requiredSkills: job.JobSkillRequirement.map(
+              (req) => req.Skill.name
+            ),
             company: {
               ...job.company,
               logoUrl: companyLogoUrl,
@@ -1734,7 +2624,7 @@ myRouter.get(
         },
       });
     } catch (err) {
-      console.error("Error obteniendo ofertas para trabajador:", err);
+      console.error("Error obteniendo ofertas:", err);
       return res.status(500).json({ error: "Error en el servidor" });
     }
   }
@@ -1755,9 +2645,9 @@ myRouter.get(
           title: true,
           description: true,
           location: true,
-          requiredSkills: true,
           duration: true,
-          salary: true,
+          salaryMin: true,
+          salaryMax: true,
           imageUrl: true,
           createdAt: true,
           company: {
@@ -1765,6 +2655,11 @@ myRouter.get(
               name: true,
               logoUrl: true,
               contactInfo: true,
+            },
+          },
+          JobSkillRequirement: {
+            include: {
+              Skill: true,
             },
           },
           _count: {
@@ -1794,7 +2689,7 @@ myRouter.get(
               companyLogoUrl = data.signedUrl;
             }
           } catch (error) {
-            console.error("Error generando URL firmada para logo:", error);
+            console.error("Error generando URL firmada:", error);
           }
         }
       }
@@ -1802,6 +2697,11 @@ myRouter.get(
       return res.json({
         job: {
           ...job,
+          requiredSkills: job.JobSkillRequirement.map((req) => ({
+            name: req.Skill.name,
+            level: req.minimumLevel,
+            isRequired: req.isRequired,
+          })),
           company: {
             ...job.company,
             logoUrl: companyLogoUrl,
@@ -1815,3 +2715,223 @@ myRouter.get(
     }
   }
 );
+
+myRouter.get("/test/matching-status", async (req, res) => {
+  try {
+    const stats = {
+      skills: await prisma.skill.count(),
+      workers: await prisma.workerProfile.count(),
+      jobs: await prisma.job.count(),
+      matches: await prisma.jobMatch.count(),
+      workerSkills: await prisma.workerSkill.count(),
+      jobSkillReqs: await prisma.jobSkillRequirement.count(),
+    };
+
+    const workers = await prisma.workerProfile.findMany({
+      select: {
+        id: true,
+        fullname: true,
+        location: true,
+        totalYearsExperience: true,
+      },
+      take: 3,
+    });
+
+    const jobs = await prisma.job.findMany({
+      select: {
+        id: true,
+        title: true,
+        location: true,
+        status: true,
+        minimumYearsExperience: true,
+      },
+      where: { status: "ACTIVE" },
+      take: 3,
+    });
+
+    let workerWithSkills = null;
+    if (workers.length > 0) {
+      try {
+        workerWithSkills = await prisma.workerProfile.findUnique({
+          where: { id: workers[0].id },
+          include: {
+            WorkerSkill: {
+              include: {
+                Skill: true,
+              },
+            },
+          },
+        });
+      } catch (e) {
+        workerWithSkills = { error: e.message };
+      }
+    }
+
+    let jobWithSkills = null;
+    if (jobs.length > 0) {
+      try {
+        jobWithSkills = await prisma.job.findUnique({
+          where: { id: jobs[0].id },
+          include: {
+            JobSkillRequirement: {
+              include: {
+                Skill: true,
+              },
+            },
+          },
+        });
+      } catch (e) {
+        jobWithSkills = { error: e.message };
+      }
+    }
+
+    const topMatches = await prisma.jobMatch.findMany({
+      select: {
+        overallScore: true,
+        skillsScore: true,
+        locationScore: true,
+        experienceScore: true,
+        meetsMinimumRequirements: true,
+        Job: {
+          select: {
+            title: true,
+            location: true,
+          },
+        },
+        WorkerProfile: {
+          select: {
+            fullname: true,
+            location: true,
+          },
+        },
+      },
+      orderBy: { overallScore: "desc" },
+      take: 5,
+    });
+
+    let sampleMatchAnalysis = null;
+    if (topMatches.length > 0) {
+      const firstMatch = await prisma.jobMatch.findFirst({
+        include: {
+          Job: {
+            include: {
+              JobSkillRequirement: {
+                include: {
+                  Skill: true,
+                },
+              },
+            },
+          },
+          WorkerProfile: {
+            include: {
+              WorkerSkill: {
+                include: {
+                  Skill: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { overallScore: "desc" },
+      });
+
+      if (firstMatch) {
+        sampleMatchAnalysis = {
+          overallScore: firstMatch.overallScore,
+          breakdown: {
+            skills: firstMatch.skillsScore,
+            location: firstMatch.locationScore,
+            experience: firstMatch.experienceScore,
+            salary: firstMatch.salaryScore,
+            availability: firstMatch.availabilityScore,
+          },
+          matchedSkills: firstMatch.matchedSkills,
+          missingSkills: firstMatch.missingSkills,
+          strengths: firstMatch.strengths,
+          weaknesses: firstMatch.weaknesses,
+          compatibility: {
+            meetsMinimumRequirements: firstMatch.meetsMinimumRequirements,
+            salaryCompatible: firstMatch.salaryCompatible,
+            locationCompatible: firstMatch.locationCompatible,
+            availabilityCompatible: firstMatch.availabilityCompatible,
+          },
+        };
+      }
+    }
+
+    return res.json({
+      stats,
+      samples: {
+        workers,
+        jobs,
+        workerWithSkills,
+        jobWithSkills,
+      },
+      topMatches,
+      sampleMatchAnalysis,
+      diagnosis: {
+        hasSkills: stats.skills > 0,
+        hasWorkers: stats.workers > 0,
+        hasJobs: stats.jobs > 0,
+        workersHaveSkills: stats.workerSkills > 0,
+        jobsHaveSkills: stats.jobSkillReqs > 0,
+        matchesExist: stats.matches > 0,
+        readyForMatching:
+          stats.skills > 0 &&
+          stats.workerSkills > 0 &&
+          stats.jobSkillReqs > 0 &&
+          stats.workers > 0 &&
+          stats.jobs > 0,
+      },
+      recommendations: getRecommendations(stats),
+    });
+  } catch (err) {
+    console.error("Error en test:", err);
+    return res.status(500).json({
+      error: err.message,
+      stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
+    });
+  }
+});
+
+function getRecommendations(stats) {
+  const recommendations = [];
+
+  if (stats.skills === 0) {
+    recommendations.push(
+      "⚠️ No hay skills en la base de datos. Necesitas crear skills primero."
+    );
+  }
+
+  if (stats.workers === 0) {
+    recommendations.push("⚠️ No hay trabajadores registrados.");
+  }
+
+  if (stats.jobs === 0) {
+    recommendations.push("⚠️ No hay ofertas de trabajo activas.");
+  }
+
+  if (stats.workerSkills === 0 && stats.workers > 0) {
+    recommendations.push(
+      "⚠️ Los trabajadores no tienen skills asignadas. Usa el WorkerSkillManager."
+    );
+  }
+
+  if (stats.jobSkillReqs === 0 && stats.jobs > 0) {
+    recommendations.push(
+      "⚠️ Las ofertas no tienen skills requeridas. Añade skills al crear ofertas."
+    );
+  }
+
+  if (stats.matches === 0 && stats.workers > 0 && stats.jobs > 0) {
+    recommendations.push(
+      "⚠️ No hay matches calculados. El sistema debería calcularlos automáticamente."
+    );
+  }
+
+  if (recommendations.length === 0) {
+    recommendations.push("✅ Sistema listo. Todo configurado correctamente.");
+  }
+
+  return recommendations;
+}

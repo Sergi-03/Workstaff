@@ -192,14 +192,30 @@ export default function WorkerJobDetailView() {
           {job.requiredSkills && job.requiredSkills.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>Habilidades Requeridas</CardTitle>
+                <CardTitle className="text-lg">
+                  Habilidades Requeridas ({job.requiredSkills.length})
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-wrap gap-2">
+                <div className="space-y-2">
                   {job.requiredSkills.map((skill, index) => (
-                    <Badge key={index} variant="secondary">
-                      {skill}
-                    </Badge>
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-2 rounded bg-muted/50"
+                    >
+                      <div>
+                        <div className="font-medium text-sm">{skill.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Nivel: {skill.level}
+                          {skill.isRequired ? " • Obligatoria" : " • Deseable"}
+                        </div>
+                      </div>
+                      <Badge
+                        variant={skill.isRequired ? "default" : "default"}
+                      >
+                        {skill.isRequired ? "Requerida" : "Opcional"}
+                      </Badge>
+                    </div>
                   ))}
                 </div>
               </CardContent>

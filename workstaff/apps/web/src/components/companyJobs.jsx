@@ -221,7 +221,7 @@ export default function CompanyJobsView() {
                 </CardHeader>
 
                 <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground line-clamp-3">
+                  <p className="text-sm text-muted-foreground text-ellipsis line-clamp-3">
                     {job.description}
                   </p>
 
@@ -230,8 +230,7 @@ export default function CompanyJobsView() {
                       {skills.slice(0, 3).map((skill, index) => (
                         <Badge
                           key={index}
-                          variant="secondary"
-                          className="text-xs max-w-[100px] truncate"
+                          className="text-xs px-2 py-1 max-w-full break-words whitespace-normal"
                           title={skill}
                         >
                           {skill}
