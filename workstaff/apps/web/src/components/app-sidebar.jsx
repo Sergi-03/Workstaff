@@ -18,6 +18,8 @@ import {
   Home,
   CircleQuestionMark,
   Search,
+  Sparkles,
+  Target,
   Settings,
   Users,
   BriefcaseBusiness,
@@ -39,6 +41,11 @@ const workerNavItems = [
     title: "Ofertas de Trabajo",
     url: "/worker/jobs",
     icon: BriefcaseBusiness,
+  },
+  {
+    title: "Trabajos Recomendados",
+    url: "/worker/recommended",
+    icon: Sparkles,
   },
   {
     title: "Mis Aplicaciones",
@@ -67,6 +74,11 @@ const companyNavItems = [
     title: "Mis Ofertas",
     url: "/company/jobs",
     icon: FileText,
+  },
+  {
+    title: "Candidatos Ideales",
+    url: "/company/matches",
+    icon: Target,
   },
   {
     title: "Aplicaciones",
