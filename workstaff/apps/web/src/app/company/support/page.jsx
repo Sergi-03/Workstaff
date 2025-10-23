@@ -22,6 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
+import { toast } from "sonner";
 
 const companyFAQs = [
   {
@@ -306,7 +307,10 @@ export default function CompanySupportPage() {
           </div>
           <div className="px-6 pb-6 text-center space-y-4">
             <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
-              <Button className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 flex-1 flex items-center justify-center gap-2 rounded-lg font-medium transition-colors">
+              <Button
+                onClick={() => toast.info("Función en desarrollo")}
+                className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 flex-1 flex items-center justify-center gap-2 rounded-lg font-medium transition-colors"
+              >
                 <svg
                   className="h-4 w-4"
                   fill="none"
@@ -323,6 +327,7 @@ export default function CompanySupportPage() {
                 Chat en Vivo
               </Button>
               <Button
+                onClick={() => toast.info("Función en desarrollo")}
                 className="px-6 py-3 flex-1 flex items-center justify-center gap-2 rounded-lg font-medium"
                 variant="outline"
               >

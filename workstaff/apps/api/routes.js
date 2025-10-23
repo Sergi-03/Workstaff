@@ -2716,6 +2716,133 @@ myRouter.get(
   }
 );
 
+myRouter.get(
+  "/company/workers/:workerId",
+  authMiddleware,
+  roleMiddleware(["COMPANY"]),
+  async (req, res) => {
+    try {
+      const { workerId } = req.params;
+
+      const worker = await prisma.workerProfile.findUnique({
+        where: { id: workerId },
+        include: {
+          user: {
+            select: {
+              email: true,
+              id: true,
+            },
+          },
+          WorkerSkill: {
+            include: {
+              Skill: true,
+            },
+            orderBy: [
+              { level: "desc" },
+              { yearsExperience: "desc" },
+            ],
+          },
+          WorkHistory: {
+            orderBy: {
+              startDate: "desc",
+            },
+          },
+          Certificate: {
+            orderBy: {
+              issuedDate: "desc",
+            },
+          },
+          reviews: {
+            select: {
+              id: true,
+              stars: true,
+              comment: true,
+              createdAt: true,
+            },
+            orderBy: {
+              createdAt: "desc",
+            },
+            take: 10,
+          },
+        },
+      });
+
+      if (!worker) {
+        return res.status(404).json({ error: "Trabajador no encontrado" });
+      }
+
+      
+      let signedPhotoUrl = null;
+      let signedIdPhotoUrl = null;
+
+      const isFullUrl = (str) =>
+        str && (str.startsWith("http") || str.startsWith("https"));
+
+      if (worker.photoUrl) {
+        if (isFullUrl(worker.photoUrl)) {
+          signedPhotoUrl = worker.photoUrl;
+        } else {
+          try {
+            const { data, error } = await supabaseAdmin.storage
+              .from("user-documents")
+              .createSignedUrl(worker.photoUrl, 60 * 60 * 24 * 365 * 10);
+
+            if (!error) {
+              signedPhotoUrl = data.signedUrl;
+            }
+          } catch (error) {
+            console.error("Error generando URL firmada para foto:", error);
+          }
+        }
+      }
+
+      if (worker.idPhotoUrl) {
+        if (isFullUrl(worker.idPhotoUrl)) {
+          signedIdPhotoUrl = worker.idPhotoUrl;
+        } else {
+          try {
+            const { data, error } = await supabaseAdmin.storage
+              .from("user-documents")
+              .createSignedUrl(worker.idPhotoUrl, 60 * 60 * 24 * 365 * 10);
+
+            if (!error) {
+              signedIdPhotoUrl = data.signedUrl;
+            }
+          } catch (error) {
+            console.error("Error generando URL firmada para DNI:", error);
+          }
+        }
+      }
+
+      
+      const stats = {
+        totalSkills: worker.WorkerSkill.length,
+        verifiedSkills: worker.WorkerSkill.filter(s => s.verified).length,
+        expertSkills: worker.WorkerSkill.filter(s => s.level === "EXPERTO").length,
+        totalCertificates: worker.Certificate.length + (worker.certificate?.length || 0),
+        verifiedCertificates: worker.Certificate.filter(c => c.verified).length,
+        currentJobs: worker.WorkHistory.filter(w => w.isCurrent).length,
+        averageRating: worker.reviews.length > 0 
+          ? worker.reviews.reduce((acc, r) => acc + r.stars, 0) / worker.reviews.length 
+          : 0,
+        totalReviews: worker.reviews.length,
+      };
+
+      return res.json({
+        worker: {
+          ...worker,
+          photoUrl: signedPhotoUrl,
+          idPhotoUrl: signedIdPhotoUrl,
+          stats,
+        },
+      });
+    } catch (err) {
+      console.error("Error obteniendo perfil del trabajador:", err);
+      return res.status(500).json({ error: "Error en el servidor" });
+    }
+  }
+);
+
 myRouter.get("/test/matching-status", async (req, res) => {
   try {
     const stats = {

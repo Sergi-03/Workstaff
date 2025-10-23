@@ -101,7 +101,7 @@ export default function WorkerRecommendedJobs() {
   }
 
   return (
-    <div className="animate-fade-in-up py-6 sm:p-6 w-full mx-auto space-y-6 select-none">
+    <div className="animate-fade-in-up py-4 sm:py-6 px-3 sm:px-6 w-full mx-auto space-y-4 sm:space-y-6 select-none">
       <div className="flex items-center justify-center rounded-md">
         <Image
           width={150}
@@ -113,12 +113,14 @@ export default function WorkerRecommendedJobs() {
         />
       </div>
 
-      <div className="flex flex-col gap-4 px-4">
-        <div className="flex items-center gap-3">
-          <Sparkles className="h-8 w-8 text-red-500" />
+      <div className="flex flex-col gap-3 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Sparkles className="h-6 w-6 sm:h-8 sm:w-8 text-red-500 flex-shrink-0" />
           <div>
-            <h1 className="text-3xl font-bold">Trabajos Recomendados</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-xl sm:text-3xl font-bold">
+              Trabajos Recomendados
+            </h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
               Ofertas perfectas para tu perfil
             </p>
           </div>
@@ -126,9 +128,9 @@ export default function WorkerRecommendedJobs() {
 
         {matches.length > 0 && (
           <Card className="border-red-500/20 bg-gradient-to-br from-red-500/5 to-transparent">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2 text-sm">
-                <TrendingUp className="h-4 w-4 text-red-500" />
+            <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6">
+              <div className="flex items-center gap-2 text-xs sm:text-sm">
+                <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-red-500 flex-shrink-0" />
                 <span className="font-medium">
                   Hemos encontrado {matches.length} ofertas que encajan contigo
                 </span>
@@ -141,12 +143,12 @@ export default function WorkerRecommendedJobs() {
       {matches.length === 0 ? (
         <Card>
           <CardContent className="pt-6">
-            <div className="text-center py-12">
-              <Sparkles className="mx-auto h-12 w-12 text-muted-foreground" />
+            <div className="text-center py-8 sm:py-12">
+              <Sparkles className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground" />
               <h3 className="mt-2 text-sm font-semibold">
                 No hay recomendaciones
               </h3>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="mt-1 text-sm text-muted-foreground px-4">
                 Completa tu perfil y añade tus habilidades para recibir mejores
                 recomendaciones.
               </p>
@@ -160,7 +162,7 @@ export default function WorkerRecommendedJobs() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-6">
+        <div className="grid gap-4 sm:gap-6">
           {matches.map((match) => {
             const job = match.Job;
             const score = match.overallScore;
@@ -170,52 +172,52 @@ export default function WorkerRecommendedJobs() {
                 key={match.id}
                 className="group hover:shadow-xl transition-all duration-300 hover:border-red-500/50"
               >
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center gap-3">
+                <CardHeader className="p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
+                    <div className="flex-1 space-y-3 min-w-0">
+                      <div className="flex items-start gap-2 sm:gap-3">
                         {job.company.logoUrl && (
-                          <Avatar className="h-12 w-12">
+                          <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
                             <AvatarImage src={job.company.logoUrl} />
                             <AvatarFallback>
                               {job.company.name.charAt(0)}
                             </AvatarFallback>
                           </Avatar>
                         )}
-                        <div>
-                          <CardTitle className="text-xl group-hover:text-red-500 transition-colors">
+                        <div className="min-w-0 flex-1">
+                          <CardTitle className="text-base sm:text-xl group-hover:text-red-500 transition-colors">
                             {job.title}
                           </CardTitle>
-                          <CardDescription className="flex items-center gap-1 mt-1">
-                            <Building2 className="h-3 w-3" />
-                            {job.company.name}
+                          <CardDescription className="flex items-center gap-1 mt-1 text-xs sm:text-sm">
+                            <Building2 className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate">{job.company.name}</span>
                           </CardDescription>
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
+                      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {job.location}
+                          <MapPin className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate">{job.location}</span>
                         </span>
                         {job.duration && (
                           <span className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
+                            <Calendar className="h-3 w-3 flex-shrink-0" />
                             {job.duration}
                           </span>
                         )}
                         {job.salaryMin && job.salaryMax && (
                           <span className="flex items-center gap-1">
-                            <Euro className="h-3 w-3" />
+                            <Euro className="h-3 w-3 flex-shrink-0" />
                             {formatSalary(job.salaryMin, job.salaryMax)}
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <div className="text-right space-y-2">
+                    <div className="flex sm:flex-col items-center sm:items-end gap-2 sm:gap-2 sm:text-right">
                       <div
-                        className={`text-4xl font-bold ${getScoreColor(
+                        className={`text-3xl sm:text-4xl font-bold ${getScoreColor(
                           score
                         )}`}
                       >
@@ -223,7 +225,7 @@ export default function WorkerRecommendedJobs() {
                       </div>
                       <Badge
                         variant={getScoreBadgeVariant(score)}
-                        className="w-full justify-center"
+                        className="justify-center whitespace-nowrap"
                       >
                         <Star className="h-3 w-3 mr-1" />
                         {score >= 80
@@ -236,56 +238,47 @@ export default function WorkerRecommendedJobs() {
                   </div>
                 </CardHeader>
 
-                <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground line-clamp-2">
+                <CardContent className="space-y-4 p-4 sm:p-6 pt-0">
+                  <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
                     {job.description}
                   </p>
 
                   <div className="space-y-3">
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center justify-between text-xs sm:text-sm">
                         <span className="font-medium">Habilidades</span>
                         <span className={getScoreColor(match.skillsScore)}>
                           {match.skillsScore.toFixed(1)}%
                         </span>
                       </div>
-                      <Progress
-                        value={match.skillsScore}
-                        className="h-2"
-                      />
+                      <Progress value={match.skillsScore} className="h-2" />
                     </div>
 
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center justify-between text-xs sm:text-sm">
                         <span className="font-medium">Ubicación</span>
                         <span className={getScoreColor(match.locationScore)}>
                           {match.locationScore.toFixed(1)}%
                         </span>
                       </div>
-                      <Progress
-                        value={match.locationScore}
-                        className="h-2"
-                      />
+                      <Progress value={match.locationScore} className="h-2" />
                     </div>
 
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center justify-between text-xs sm:text-sm">
                         <span className="font-medium">Experiencia</span>
                         <span className={getScoreColor(match.experienceScore)}>
                           {match.experienceScore.toFixed(1)}%
                         </span>
                       </div>
-                      <Progress
-                        value={match.experienceScore}
-                        className="h-2"
-                      />
+                      <Progress value={match.experienceScore} className="h-2" />
                     </div>
                   </div>
 
                   {match.matchedSkills.length > 0 && (
                     <div className="space-y-2">
-                      <p className="text-sm font-medium flex items-center gap-1">
-                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      <p className="text-xs sm:text-sm font-medium flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 text-green-500 flex-shrink-0" />
                         Habilidades que cumples ({match.matchedSkills.length})
                       </p>
                       <div className="flex flex-wrap gap-1">
@@ -304,8 +297,8 @@ export default function WorkerRecommendedJobs() {
 
                   {match.missingSkills.length > 0 && (
                     <div className="space-y-2">
-                      <p className="text-sm font-medium flex items-center gap-1">
-                        <AlertCircle className="h-4 w-4 text-yellow-500" />
+                      <p className="text-xs sm:text-sm font-medium flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-500 flex-shrink-0" />
                         Habilidades por mejorar ({match.missingSkills.length})
                       </p>
                       <div className="flex flex-wrap gap-1">
@@ -324,7 +317,7 @@ export default function WorkerRecommendedJobs() {
 
                   {match.strengths.length > 0 && (
                     <div className="space-y-2">
-                      <p className="text-sm font-medium text-green-600 dark:text-green-400">
+                      <p className="text-xs sm:text-sm font-medium text-green-600 dark:text-green-400">
                         ✓ Tus fortalezas
                       </p>
                       <div className="flex flex-wrap gap-2">
@@ -342,7 +335,7 @@ export default function WorkerRecommendedJobs() {
 
                   {match.weaknesses.length > 0 && (
                     <div className="space-y-2">
-                      <p className="text-sm font-medium text-yellow-600 dark:text-yellow-400">
+                      <p className="text-xs sm:text-sm font-medium text-yellow-600 dark:text-yellow-400">
                         ⚠ Áreas de mejora
                       </p>
                       <div className="flex flex-wrap gap-2">
@@ -360,7 +353,7 @@ export default function WorkerRecommendedJobs() {
 
                   <Separator />
 
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <Button
                       onClick={() => router.push(`/worker/jobs/${job.id}`)}
                       className="flex-1 bg-red-500 hover:bg-red-600 text-white"

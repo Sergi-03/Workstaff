@@ -558,7 +558,8 @@ export default function CompanyMatches() {
                             variant="outline"
                             className="flex-1"
                             onClick={() => {
-                              toast.success("Función en desarrollo");
+                              const jobId = selectedJobId;
+                              router.push(`/company/workers/${worker.id}?jobId=${jobId}`);
                             }}
                           >
                             Ver Perfil Completo
