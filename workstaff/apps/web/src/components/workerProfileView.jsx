@@ -350,7 +350,7 @@ export default function WorkerProfileView() {
       )}
 
       <Tabs defaultValue="skills" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5 h-auto">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 h-auto gap-1">
           <TabsTrigger value="skills" className="text-xs sm:text-sm py-2">
             Habilidades
           </TabsTrigger>
@@ -363,7 +363,10 @@ export default function WorkerProfileView() {
           <TabsTrigger value="reviews" className="text-xs sm:text-sm py-2">
             Valoraciones
           </TabsTrigger>
-          <TabsTrigger value="match" className="text-xs sm:text-sm py-2">
+          <TabsTrigger
+            value="match"
+            className="text-xs sm:text-sm py-2 col-span-2 sm:col-span-1"
+          >
             Match
           </TabsTrigger>
         </TabsList>
