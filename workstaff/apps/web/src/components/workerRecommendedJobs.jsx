@@ -25,6 +25,7 @@ import {
   AlertCircle,
   Building2,
   Star,
+  ArrowLeft
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -116,6 +117,14 @@ export default function WorkerRecommendedJobs() {
 
         <div className="flex flex-col gap-3 sm:gap-4">
           <div className="flex items-center gap-2 sm:gap-3">
+            <Button
+            variant="outline"
+            size="icon"
+            onClick={() => router.back()}
+            className="shrink-0"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
             <Sparkles className="h-6 w-6 sm:h-8 sm:w-8 text-red-500 flex-shrink-0" />
             <div className="min-w-0 flex-1">
               <h1 className="text-xl sm:text-3xl font-bold">

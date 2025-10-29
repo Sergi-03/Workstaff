@@ -30,8 +30,7 @@ import {
   Briefcase,
   Star,
   Users,
-  Mail,
-  Phone,
+  ArrowLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -158,6 +157,14 @@ export default function CompanyMatches() {
 
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => router.back()}
+            className="shrink-0"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
           <Target className="h-8 w-8 text-red-500" />
           <div>
             <h1 className="text-3xl font-bold">Candidatos Ideales</h1>
