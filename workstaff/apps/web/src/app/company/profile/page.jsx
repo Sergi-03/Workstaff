@@ -15,13 +15,15 @@ function CompanyProfileContent() {
   const search = useSearchParams();
   const onboarding = search.get("onboarding") === "1";
 
-  const savedUser = typeof window !== "undefined" ? localStorage.getItem("user") : null;
+  const savedUser =
+    typeof window !== "undefined" ? localStorage.getItem("user") : null;
   const initialUser = savedUser ? JSON.parse(savedUser) : {};
 
   const [profile, setProfile] = useState(null);
   const [name, setName] = useState(initialUser.name || "");
   const [cif, setCif] = useState(initialUser.cif || "");
   const [contactInfo, setContactInfo] = useState(initialUser.email || "");
+  const [phone, setPhone] = useState(initialUser.phone || "");
   const [logoUrl, setLogoUrl] = useState(initialUser.logoUrl);
 
   const [logoFile, setLogoFile] = useState(null);
@@ -46,10 +48,10 @@ function CompanyProfileContent() {
           method: "GET",
         });
         setProfile(data);
-
         setName(data.name || "");
         setCif(data.cif || "");
         setContactInfo(data.contactInfo || "");
+        setPhone(data.phone || data.user?.phone || "");
         setLogoUrl(data.logoUrl || "");
       } catch (err) {
         toast.error(err.message || "Error cargando perfil");
@@ -105,7 +107,7 @@ function CompanyProfileContent() {
   const onSave = async (e) => {
     e.preventDefault();
 
-    if (!name.trim() || !cif.trim() || !contactInfo.trim()) {
+    if (!name.trim() || !cif.trim() || !contactInfo.trim() || !phone.trim()) {
       toast.error("Por favor completa todos los campos obligatorios");
       return;
     }
@@ -123,6 +125,7 @@ function CompanyProfileContent() {
           name: name.trim(),
           cif: cif.trim(),
           contactInfo: contactInfo.trim(),
+          phone: phone.trim(),
         },
       });
 
@@ -137,8 +140,10 @@ function CompanyProfileContent() {
     }
   };
 
-  const completed = [name, cif, contactInfo, logoUrl].filter(Boolean).length;
-  const progress = Math.min((completed / 4) * 100, 100);
+  const completed = [name, cif, contactInfo, phone, logoUrl].filter(
+    Boolean
+  ).length;
+  const progress = Math.min((completed / 5) * 100, 100);
 
   return (
     <div className="animate-fade-in-up min-h-screen pt-0">
@@ -246,6 +251,22 @@ function CompanyProfileContent() {
             />
             <p className="text-xs text-muted-foreground mt-1">
               Email donde los trabajadores podrán contactarte
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm mb-1">
+              Teléfono de contacto <span className="text-red-500">*</span>
+            </label>
+            <Input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+34 900 123 456"
+              required
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Tu número de teléfono para contacto rápido
             </p>
           </div>
 

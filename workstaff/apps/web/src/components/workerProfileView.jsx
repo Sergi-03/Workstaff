@@ -207,14 +207,7 @@ export default function WorkerProfileView() {
                   <MapPin className="h-3 w-3 sm:h-4 sm:w-4" />
                   {worker.location || "Ubicación no especificada"}
                 </span>
-                {worker.user?.email && (
-                  <span className="flex items-center gap-1">
-                    <Mail className="h-3 w-3 sm:h-4 sm:w-4" />
-                    <span className="truncate max-w-[200px]">
-                      {worker.user.email}
-                    </span>
-                  </span>
-                )}
+
                 {worker.availableFromDate && (
                   <span className="flex items-center gap-1">
                     <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -274,19 +267,6 @@ export default function WorkerProfileView() {
 
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-2">
-            <Button
-              className="flex-1 bg-red-500 hover:bg-red-600 text-white"
-              onClick={() => {
-                if (worker.user?.email) {
-                  window.location.href = `mailto:${worker.user.email}`;
-                } else {
-                  toast.info("Email no disponible");
-                }
-              }}
-            >
-              <Mail className="h-4 w-4 mr-2" />
-              Contactar Candidato
-            </Button>
             <Button
               variant="outline"
               className="flex-1 sm:flex-initial"

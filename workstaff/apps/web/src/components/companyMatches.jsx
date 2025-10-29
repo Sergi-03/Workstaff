@@ -303,12 +303,6 @@ export default function CompanyMatches() {
                                     experiencia
                                   </span>
                                 )}
-                                {worker.user?.email && (
-                                  <span className="flex items-center gap-1">
-                                    <Mail className="h-3 w-3" />
-                                    Contacto disponible
-                                  </span>
-                                )}
                               </div>
                             </div>
                           </div>
@@ -542,24 +536,13 @@ export default function CompanyMatches() {
 
                         <div className="flex gap-2">
                           <Button
-                            className="flex-1 bg-red-500 hover:bg-red-600 text-white"
-                            onClick={() => {
-                              if (worker.user?.email) {
-                                window.location.href = `mailto:${worker.user.email}`;
-                              } else {
-                                toast.info("Email no disponible");
-                              }
-                            }}
-                          >
-                            <Mail className="h-4 w-4 mr-2" />
-                            Contactar
-                          </Button>
-                          <Button
                             variant="outline"
                             className="flex-1"
                             onClick={() => {
                               const jobId = selectedJobId;
-                              router.push(`/company/workers/${worker.id}?jobId=${jobId}`);
+                              router.push(
+                                `/company/workers/${worker.id}?jobId=${jobId}`
+                              );
                             }}
                           >
                             Ver Perfil Completo

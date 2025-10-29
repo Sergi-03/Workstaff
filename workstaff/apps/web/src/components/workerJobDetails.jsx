@@ -210,9 +210,7 @@ export default function WorkerJobDetailView() {
                           {skill.isRequired ? " • Obligatoria" : " • Deseable"}
                         </div>
                       </div>
-                      <Badge
-                        variant={skill.isRequired ? "default" : "default"}
-                      >
+                      <Badge variant={skill.isRequired ? "default" : "default"}>
                         {skill.isRequired ? "Requerida" : "Opcional"}
                       </Badge>
                     </div>
@@ -246,14 +244,6 @@ export default function WorkerJobDetailView() {
                   <div className="font-semibold truncate">
                     {job.company.name}
                   </div>
-                  {job.company.contactInfo && (
-                    <div className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                      <Mail className="h-3 w-3 shrink-0" />
-                      <span className="truncate">
-                        {job.company.contactInfo}
-                      </span>
-                    </div>
-                  )}
                 </div>
               </div>
             </CardContent>

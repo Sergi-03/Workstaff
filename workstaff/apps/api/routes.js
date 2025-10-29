@@ -365,13 +365,34 @@ myRouter.post(
   ]),
   async (req, res) => {
     try {
-      const { role, email, password, fullname, companyName, cif } = req.body;
+      const { role, email, password, phone, fullname, companyName, cif } =
+        req.body;
       const profileFile = req.files["profilePhoto"]?.[0];
       const dniFile = req.files["dniPhoto"]?.[0];
       const logoFile = req.files["logo"]?.[0];
 
-      if (!email || !password || !role) {
-        return res.status(400).json({ error: "Faltan datos obligatorios" });
+      if (!email || !password || !role || !phone) {
+        return res
+          .status(400)
+          .json({
+            error: "Faltan datos obligatorios (email, password, role, phone)",
+          });
+      }
+
+      const phoneRegex =
+        /^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,9}$/;
+      if (!phoneRegex.test(phone)) {
+        return res.status(400).json({ error: "Formato de teléfono inválido" });
+      }
+
+      const existingPhone = await prisma.user.findFirst({
+        where: { phone },
+      });
+
+      if (existingPhone) {
+        return res
+          .status(400)
+          .json({ error: "Este número de teléfono ya está registrado" });
       }
 
       const { data: authData, error: authError } =
@@ -469,12 +490,14 @@ myRouter.post(
       const userData = {
         id: userId,
         email,
+        phone,
         role,
         workerProfile:
           role === "WORKER"
             ? {
                 create: {
                   fullname,
+                  phone,
                   photoUrl: profilePhotoUrl,
                   idPhotoUrl: dniPhotoUrl,
                 },
@@ -483,7 +506,13 @@ myRouter.post(
         companyProfile:
           role === "COMPANY"
             ? {
-                create: { name: companyName, contactInfo: email, cif, logoUrl },
+                create: {
+                  name: companyName,
+                  contactInfo: email,
+                  phone,
+                  cif,
+                  logoUrl,
+                },
               }
             : undefined,
       };
@@ -1065,7 +1094,7 @@ myRouter.get(
       const profile = await prisma.workerProfile.findUnique({
         where: { userId: req.appUser.id },
         include: {
-          user: { select: { email: true, role: true, id: true } },
+          user: { select: { email: true, role: true, id: true, phone: true } },
           reviews: true,
         },
       });
@@ -1128,6 +1157,7 @@ myRouter.put(
     try {
       const {
         fullname,
+        phone,
         experienceDescription,
         workerAvailability,
         certificate,
@@ -1149,6 +1179,7 @@ myRouter.put(
 
       const data = {};
       if (fullname !== undefined) data.fullname = fullname;
+      if (phone !== undefined) data.phone = phone;
       if (experienceDescription !== undefined)
         data.experienceDescription = experienceDescription;
       if (workerAvailability !== undefined)
@@ -1283,7 +1314,7 @@ myRouter.get(
       const profile = await prisma.companyProfile.findUnique({
         where: { userId: req.appUser.id },
         include: {
-          user: { select: { email: true, role: true, id: true } },
+          user: { select: { email: true, role: true, id: true, phone: true } },
           jobs: true,
           contracts: true,
         },
@@ -1329,7 +1360,7 @@ myRouter.put(
   roleMiddleware(["COMPANY"]),
   async (req, res) => {
     try {
-      const { name, cif, contactInfo } = req.body;
+      const { name, cif, contactInfo, phone } = req.body;
 
       const updatedProfile = await prisma.companyProfile.update({
         where: { userId: req.appUser.id },
@@ -1337,6 +1368,7 @@ myRouter.put(
           name,
           cif,
           contactInfo,
+          phone,
           onboardingCompleted: true,
         },
       });
@@ -1562,13 +1594,8 @@ myRouter.put(
   async (req, res) => {
     try {
       const { jobId } = req.params;
-      const {
-        title,
-        description,
-        location,
-        requiredSkillsData,
-        duration,
-      } = req.body;
+      const { title, description, location, requiredSkillsData, duration } =
+        req.body;
 
       const companyProfile = await prisma.companyProfile.findUnique({
         where: { userId: req.appUser.id },
@@ -2737,10 +2764,7 @@ myRouter.get(
             include: {
               Skill: true,
             },
-            orderBy: [
-              { level: "desc" },
-              { yearsExperience: "desc" },
-            ],
+            orderBy: [{ level: "desc" }, { yearsExperience: "desc" }],
           },
           WorkHistory: {
             orderBy: {
@@ -2771,7 +2795,6 @@ myRouter.get(
         return res.status(404).json({ error: "Trabajador no encontrado" });
       }
 
-      
       let signedPhotoUrl = null;
       let signedIdPhotoUrl = null;
 
@@ -2814,17 +2837,21 @@ myRouter.get(
         }
       }
 
-      
       const stats = {
         totalSkills: worker.WorkerSkill.length,
-        verifiedSkills: worker.WorkerSkill.filter(s => s.verified).length,
-        expertSkills: worker.WorkerSkill.filter(s => s.level === "EXPERTO").length,
-        totalCertificates: worker.Certificate.length + (worker.certificate?.length || 0),
-        verifiedCertificates: worker.Certificate.filter(c => c.verified).length,
-        currentJobs: worker.WorkHistory.filter(w => w.isCurrent).length,
-        averageRating: worker.reviews.length > 0 
-          ? worker.reviews.reduce((acc, r) => acc + r.stars, 0) / worker.reviews.length 
-          : 0,
+        verifiedSkills: worker.WorkerSkill.filter((s) => s.verified).length,
+        expertSkills: worker.WorkerSkill.filter((s) => s.level === "EXPERTO")
+          .length,
+        totalCertificates:
+          worker.Certificate.length + (worker.certificate?.length || 0),
+        verifiedCertificates: worker.Certificate.filter((c) => c.verified)
+          .length,
+        currentJobs: worker.WorkHistory.filter((w) => w.isCurrent).length,
+        averageRating:
+          worker.reviews.length > 0
+            ? worker.reviews.reduce((acc, r) => acc + r.stars, 0) /
+              worker.reviews.length
+            : 0,
         totalReviews: worker.reviews.length,
       };
 

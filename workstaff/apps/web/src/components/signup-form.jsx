@@ -14,6 +14,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
+const phoneValidation = z
+  .string()
+  .min(1, "El teléfono es obligatorio")
+  .refine(
+    (val) => {
+      const cleanPhone = val.replace(/[\s\-().]/g, "");
+
+      return /^(\+?\d{9,15})$/.test(cleanPhone);
+    },
+    {
+      message:
+        "Teléfono inválido. Debe tener entre 9-15 dígitos (ej: +34 612345678)",
+    }
+  );
+
 const workerSchema = z.object({
   fullname: z
     .string()
@@ -22,6 +37,7 @@ const workerSchema = z.object({
       message: "Debes ingresar al menos nombre y apellido",
     }),
   email: z.string().email("Correo inválido"),
+  phone: phoneValidation,
   password: z.string().min(6, "La contraseña debe tener mínimo 6 caracteres"),
   profilePhoto: z.any().optional(),
   dniPhoto: z
@@ -37,6 +53,7 @@ const companySchema = z.object({
       message: "Incluye al menos dos palabras (ej: 'Panadería López')",
     }),
   email: z.string().email("Correo inválido"),
+  phone: phoneValidation,
   password: z.string().min(6, "La contraseña debe tener mínimo 6 caracteres"),
   cif: z
     .string()
@@ -52,6 +69,14 @@ export function RegisterForm({ className, ...props }) {
 
   const form = useForm({
     resolver: zodResolver(role === "trabajador" ? workerSchema : companySchema),
+    defaultValues: {
+      fullname: "",
+      companyName: "",
+      email: "",
+      phone: "",
+      password: "",
+      cif: "",
+    },
   });
 
   const onSubmit = async (data) => {
@@ -61,6 +86,7 @@ export function RegisterForm({ className, ...props }) {
 
       formData.append("role", role === "trabajador" ? "WORKER" : "COMPANY");
       formData.append("email", data.email);
+      formData.append("phone", data.phone);
       formData.append("password", data.password);
 
       if (role === "trabajador") {
@@ -102,6 +128,7 @@ export function RegisterForm({ className, ...props }) {
           name: result.user?.name || "Usuario",
           cif: result.user?.cif || "Cif",
           email: result.user?.contactInfo || "Email",
+          phone: result.user?.phone || data.phone,
           photoUrl: result.user?.photoUrl || "",
           idPhotoUrl: result.user?.idPhotoUrl || "Id",
           logoUrl: result.user?.logoUrl || "",
@@ -199,6 +226,22 @@ export function RegisterForm({ className, ...props }) {
                   {form.formState.errors.email && (
                     <p className="text-red-500 text-sm">
                       {form.formState.errors.email.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid gap-3">
+                  <Label htmlFor="phone">Teléfono</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="+34 612345678"
+                    required
+                    {...form.register("phone")}
+                  />
+                  {form.formState.errors.phone && (
+                    <p className="text-red-500 text-sm">
+                      {form.formState.errors.phone.message}
                     </p>
                   )}
                 </div>
@@ -311,6 +354,22 @@ export function RegisterForm({ className, ...props }) {
                   {form.formState.errors.email && (
                     <p className="text-red-500 text-sm">
                       {form.formState.errors.email.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid gap-3">
+                  <Label htmlFor="phone">Teléfono</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="+34 612345678"
+                    required
+                    {...form.register("phone")}
+                  />
+                  {form.formState.errors.phone && (
+                    <p className="text-red-500 text-sm">
+                      {form.formState.errors.phone.message}
                     </p>
                   )}
                 </div>

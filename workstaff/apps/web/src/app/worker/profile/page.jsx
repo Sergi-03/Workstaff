@@ -18,11 +18,12 @@ function WorkerProfileContent() {
   const onboarding = search.get("onboarding") === "1";
 
   const savedUser =
-  typeof window !== "undefined" ? localStorage.getItem("user") : null;
+    typeof window !== "undefined" ? localStorage.getItem("user") : null;
   const initialUser = savedUser ? JSON.parse(savedUser) : {};
 
   const [profile, setProfile] = useState(null);
   const [fullname, setFullname] = useState(initialUser.fullname);
+  const [phone, setPhone] = useState(initialUser.phone || "");
   const [experienceDescription, setExperienceDescription] = useState("");
   const [workerAvailability, setWorkerAvailability] = useState("");
   const [certificate, setCertificate] = useState("");
@@ -56,15 +57,15 @@ function WorkerProfileContent() {
 
         setProfile(data);
         setFullname(data.fullname || "");
-
-       
+        setPhone(data.phone || data.user?.phone || "");
         setExperienceDescription(data.experienceDescription || "");
-          setWorkerAvailability(
-          Array.isArray(data.workerAvailability) && data.workerAvailability.length > 0
+        setWorkerAvailability(
+          Array.isArray(data.workerAvailability) &&
+            data.workerAvailability.length > 0
             ? data.workerAvailability.join(", ")
             : ""
         );
-        
+
         setCertificate(
           Array.isArray(data.certificate) && data.certificate.length > 0
             ? data.certificate.join(", ")
@@ -176,6 +177,7 @@ function WorkerProfileContent() {
         method: "PUT",
         body: {
           fullname,
+          phone,
           experienceDescription,
           workerAvailability: workerAvailability,
           certificate: certificate,
@@ -194,6 +196,7 @@ function WorkerProfileContent() {
 
   const completed = [
     fullname,
+    phone,
     experienceDescription,
     workerAvailability,
     certificate,
@@ -202,7 +205,7 @@ function WorkerProfileContent() {
     location,
   ].filter((field) => field && field.length > 0).length;
 
-  const progress = Math.min((completed / 7) * 100, 100);
+  const progress = Math.min((completed / 8) * 100, 100);
 
   return (
     <div className="animate-fade-in-up min-h-screen pt-0">
@@ -314,6 +317,22 @@ function WorkerProfileContent() {
               onChange={(e) => setFullname(e.target.value)}
               required
             />
+          </div>
+
+          <div>
+            <label className="block text-sm mb-1">
+              Teléfono <span className="text-red-500">*</span>
+            </label>
+            <Input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+34 600 123 456"
+              required
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Tu número de contacto profesional
+            </p>
           </div>
 
           <div>

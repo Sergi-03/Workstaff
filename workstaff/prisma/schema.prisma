@@ -17,6 +17,7 @@ datasource db {
 model User {
   id                   String          @id @default(cuid())
   email                String          @unique
+  phone                String          @default("unknown") 
   role                 Role
   createdAt            DateTime        @default(now())
   twoFactorBackupCodes String[]
@@ -32,6 +33,7 @@ model CompanyProfile {
   userId              String     @unique
   name                String
   contactInfo         String
+  phone               String     @default("unknown")
   cif                 String
   logoUrl             String?
   onboardingCompleted Boolean    @default(false)
@@ -44,6 +46,7 @@ model WorkerProfile {
   id                     String               @id @default(cuid())
   userId                 String               @unique
   fullname               String
+  phone                  String               @default("unknown")
   photoUrl               String?
   idPhotoUrl             String
   verified               Boolean              @default(false)
