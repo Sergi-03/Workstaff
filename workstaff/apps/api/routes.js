@@ -372,11 +372,9 @@ myRouter.post(
       const logoFile = req.files["logo"]?.[0];
 
       if (!email || !password || !role || !phone) {
-        return res
-          .status(400)
-          .json({
-            error: "Faltan datos obligatorios (email, password, role, phone)",
-          });
+        return res.status(400).json({
+          error: "Faltan datos obligatorios (email, password, role, phone)",
+        });
       }
 
       const phoneRegex =
@@ -1163,7 +1161,35 @@ myRouter.put(
         certificate,
         workHistory,
         location,
+        socialSecurityNumber,
+        fullAddress,
       } = req.body;
+
+      if (!fullname || !fullname.trim()) {
+        return res
+          .status(400)
+          .json({ error: "El nombre completo es obligatorio" });
+      }
+
+      if (!phone || !phone.trim()) {
+        return res.status(400).json({ error: "El teléfono es obligatorio" });
+      }
+
+      if (!location || !location.trim()) {
+        return res.status(400).json({ error: "La ubicación es obligatoria" });
+      }
+
+      if (!socialSecurityNumber || !socialSecurityNumber.trim()) {
+        return res
+          .status(400)
+          .json({ error: "El número de seguridad social es obligatorio" });
+      }
+
+      if (!fullAddress || !fullAddress.trim()) {
+        return res
+          .status(400)
+          .json({ error: "La dirección completa es obligatoria" });
+      }
 
       const parseToArray = (val) => {
         if (Array.isArray(val))
@@ -1178,16 +1204,19 @@ myRouter.put(
       };
 
       const data = {};
-      if (fullname !== undefined) data.fullname = fullname;
-      if (phone !== undefined) data.phone = phone;
+      if (fullname !== undefined) data.fullname = fullname.trim();
+      if (phone !== undefined) data.phone = phone.trim();
       if (experienceDescription !== undefined)
-        data.experienceDescription = experienceDescription;
+        data.experienceDescription = experienceDescription.trim();
       if (workerAvailability !== undefined)
         data.workerAvailability = parseToArray(workerAvailability);
       if (certificate !== undefined)
         data.certificate = parseToArray(certificate);
       if (workHistory !== undefined) data.workHistory = workHistory;
-      if (location !== undefined) data.location = location;
+      if (location !== undefined) data.location = location.trim();
+      if (socialSecurityNumber !== undefined)
+        data.socialSecurityNumber = socialSecurityNumber.trim();
+      if (fullAddress !== undefined) data.fullAddress = fullAddress.trim();
 
       const updated = await prisma.workerProfile.update({
         where: { userId: req.appUser.id },
@@ -1360,15 +1389,35 @@ myRouter.put(
   roleMiddleware(["COMPANY"]),
   async (req, res) => {
     try {
-      const { name, cif, contactInfo, phone } = req.body;
+      const {
+        name,
+        cif,
+        contactInfo,
+        phone,
+        description,
+        website,
+        contactPersonName,
+        contactPersonRole,
+        fullAddress,
+      } = req.body;
+
+      const data = {};
+      if (name !== undefined) data.name = name;
+      if (cif !== undefined) data.cif = cif;
+      if (contactInfo !== undefined) data.contactInfo = contactInfo;
+      if (phone !== undefined) data.phone = phone;
+      if (description !== undefined) data.description = description;
+      if (website !== undefined) data.website = website;
+      if (contactPersonName !== undefined)
+        data.contactPersonName = contactPersonName;
+      if (contactPersonRole !== undefined)
+        data.contactPersonRole = contactPersonRole;
+      if (fullAddress !== undefined) data.fullAddress = fullAddress;
 
       const updatedProfile = await prisma.companyProfile.update({
         where: { userId: req.appUser.id },
         data: {
-          name,
-          cif,
-          contactInfo,
-          phone,
+          ...data,
           onboardingCompleted: true,
         },
       });
@@ -2682,6 +2731,8 @@ myRouter.get(
               name: true,
               logoUrl: true,
               contactInfo: true,
+              description: true,
+              website: true
             },
           },
           JobSkillRequirement: {

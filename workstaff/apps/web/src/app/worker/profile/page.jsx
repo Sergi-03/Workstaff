@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import WorkerSkillManager from "@/components/workerSkillManager";
+import { ArrowLeft } from "lucide-react";
 
 function WorkerProfileContent() {
   const router = useRouter();
@@ -30,6 +31,8 @@ function WorkerProfileContent() {
   const [photoUrl, setPhotoUrl] = useState(initialUser.photoUrl);
   const [idPhotoUrl, setIdPhotoUrl] = useState("");
   const [location, setLocation] = useState("");
+  const [socialSecurityNumber, setSocialSecurityNumber] = useState("");
+  const [fullAddress, setFullAddress] = useState("");
 
   const [profilePhotoFile, setProfilePhotoFile] = useState(null);
   const [idPhotoFile, setIdPhotoFile] = useState(null);
@@ -37,6 +40,31 @@ function WorkerProfileContent() {
 
   const profilePhotoInputRef = useRef(null);
   const idPhotoInputRef = useRef(null);
+
+  const validateSSN = (ssn) => {
+    const cleaned = ssn.replace(/\s/g, "");
+    return /^\d{12}$/.test(cleaned);
+  };
+
+  const validatePhone = (phone) => {
+    const cleaned = phone.replace(/[^\d+]/g, "");
+    const digitCount = cleaned.replace(/\+/g, "").length;
+
+    if (digitCount < 9 || digitCount > 15) {
+      return false;
+    }
+    return /^\+?\d{9,15}$/.test(cleaned);
+  };
+
+  const formatSSN = (value) => {
+    const numbers = value.replace(/\D/g, "");
+    const limited = numbers.slice(0, 12);
+
+    if (limited.length > 2) {
+      return `${limited.slice(0, 2)} ${limited.slice(2)}`;
+    }
+    return limited;
+  };
 
   useEffect(() => {
     const { token, role } = getAuth();
@@ -75,6 +103,14 @@ function WorkerProfileContent() {
         setPhotoUrl(data.photoUrl || photoUrl);
         setIdPhotoUrl(data.idPhotoUrl || "");
         setLocation(data.location || "");
+        setSocialSecurityNumber(
+          data.socialSecurityNumber === "N/A"
+            ? ""
+            : data.socialSecurityNumber || ""
+        );
+        setFullAddress(
+          data.fullAddress === "N/A" ? "" : data.fullAddress || ""
+        );
       } catch (err) {
         toast.error(err.message || "Error cargando perfil");
       }
@@ -168,6 +204,42 @@ function WorkerProfileContent() {
 
   const onSave = async (e) => {
     e.preventDefault();
+
+    if (!fullname?.trim()) {
+      toast.error("El nombre completo es obligatorio");
+      return;
+    }
+
+    if (!phone?.trim()) {
+      toast.error("El teléfono es obligatorio");
+      return;
+    }
+
+    if (!location?.trim()) {
+      toast.error("La ubicación es obligatoria");
+      return;
+    }
+
+    if (!socialSecurityNumber?.trim()) {
+      toast.error("El número de seguridad social es obligatorio");
+      return;
+    }
+
+    if (!fullAddress?.trim()) {
+      toast.error("La dirección completa es obligatoria");
+      return;
+    }
+
+    if (!validatePhone(phone)) {
+      toast.error("Formato de teléfono inválido");
+      return;
+    }
+
+    if (!validateSSN(socialSecurityNumber)) {
+      toast.error("El número de seguridad social debe tener 12 dígitos");
+      return;
+    }
+
     setUploading(true);
 
     try {
@@ -182,6 +254,8 @@ function WorkerProfileContent() {
           workerAvailability: workerAvailability,
           certificate: certificate,
           location,
+          socialSecurityNumber,
+          fullAddress,
         },
       });
 
@@ -203,9 +277,11 @@ function WorkerProfileContent() {
     photoUrl,
     idPhotoUrl,
     location,
+    socialSecurityNumber,
+    fullAddress,
   ].filter((field) => field && field.length > 0).length;
 
-  const progress = Math.min((completed / 8) * 100, 100);
+  const progress = Math.min((completed / 10) * 100, 100);
 
   return (
     <div className="animate-fade-in-up min-h-screen pt-0">
@@ -226,6 +302,14 @@ function WorkerProfileContent() {
             Completa tu perfil para comenzar a postularte a trabajos
           </h1>
         )}
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => router.back()}
+          className="shrink-0"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
 
         <div>
           <label className="block text-sm mb-1">Progreso del perfil</label>
@@ -332,6 +416,38 @@ function WorkerProfileContent() {
             />
             <p className="text-xs text-muted-foreground mt-1">
               Tu número de contacto profesional
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm mb-1">
+              Número de Seguridad Social <span className="text-red-500">*</span>
+            </label>
+            <Input
+              value={socialSecurityNumber}
+              onChange={(e) => {
+                const formatted = formatSSN(e.target.value);
+                setSocialSecurityNumber(formatted);
+              }}
+              placeholder="12 1234567890"
+              maxLength={15}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Tu número de afiliación a la Seguridad Social (12 dígitos)
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm mb-1">
+              Dirección completa <span className="text-red-500">*</span>
+            </label>
+            <Input
+              value={fullAddress}
+              onChange={(e) => setFullAddress(e.target.value)}
+              placeholder="Calle, número, piso, código postal, ciudad"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Tu dirección de residencia completa
             </p>
           </div>
 

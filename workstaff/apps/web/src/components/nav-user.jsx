@@ -34,8 +34,8 @@ import { apiFetch, getAuth } from "@/lib/api";
 export function NavUser() {
   const { isMobile } = useSidebar();
   const [user, setUser] = useState(() => {
-  const savedUser = localStorage.getItem("user");
-  return savedUser ? JSON.parse(savedUser) : null;
+    const savedUser = localStorage.getItem("user");
+    return savedUser ? JSON.parse(savedUser) : null;
   });
   const router = useRouter();
 
@@ -47,38 +47,42 @@ export function NavUser() {
     }
 
     const fetchProfile = async () => {
-    try {
-      let profileData = null;
+      try {
+        let profileData = null;
 
-      if (role === "WORKER") {
-        profileData = await apiFetch("/api/auth/worker/profile", { method: "GET" });
-        const updatedUser = {
-          fullname: profileData?.fullname || "Trabajador",
-          email: profileData?.user?.email || "usuario@workstaff.com",
-          photoUrl: profileData?.photoUrl || "",
-          role,
-        };
-        setUser(updatedUser);
-        localStorage.setItem("user", JSON.stringify(updatedUser));
-      } else if (role === "COMPANY") {
-        profileData = await apiFetch("/api/auth/company/profile", { method: "GET" });
-        const updatedUser = {
-          fullname: profileData?.name || "Empresa",
-          email: profileData?.user?.email || "empresa@workstaff.com",
-          photoUrl: profileData?.logoUrl || "",
-          role,
-        };
-        setUser(updatedUser);
-        localStorage.setItem("user", JSON.stringify(updatedUser));
+        if (role === "WORKER") {
+          profileData = await apiFetch("/api/auth/worker/profile", {
+            method: "GET",
+          });
+          const updatedUser = {
+            fullname: profileData?.fullname || "Trabajador",
+            email: profileData?.user?.email || "usuario@workstaff.com",
+            photoUrl: profileData?.photoUrl || "",
+            role,
+          };
+          setUser(updatedUser);
+          localStorage.setItem("user", JSON.stringify(updatedUser));
+        } else if (role === "COMPANY") {
+          profileData = await apiFetch("/api/auth/company/profile", {
+            method: "GET",
+          });
+          const updatedUser = {
+            fullname: profileData?.name || "Empresa",
+            email: profileData?.user?.email || "empresa@workstaff.com",
+            photoUrl: profileData?.logoUrl || "",
+            role,
+          };
+          setUser(updatedUser);
+          localStorage.setItem("user", JSON.stringify(updatedUser));
+        }
+      } catch (err) {
+        console.error("Error cargando perfil:", err);
+        toast.error("Error cargando perfil");
       }
-    } catch (err) {
-      console.error("Error cargando perfil:", err);
-      toast.error("Error cargando perfil");
-    }
-  };
+    };
 
-  fetchProfile();
-}, [router]);
+    fetchProfile();
+  }, [router]);
 
   const handleLogout = () => {
     localStorage.clear();
@@ -173,7 +177,9 @@ export function NavUser() {
                   {item.label}
                 </DropdownMenuItem>
               ))}
-              <DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => toast.info("Funcionalidad en desarrollo")}
+              >
                 <IconNotification className="mr-2" />
                 Notificaciones
               </DropdownMenuItem>

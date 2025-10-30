@@ -37,6 +37,11 @@ model CompanyProfile {
   cif                 String
   logoUrl             String?
   onboardingCompleted Boolean    @default(false)
+  description         String?
+  website             String?
+  contactPersonName   String     @default("N/A")
+  contactPersonRole   String     @default("N/A")
+  fullAddress         String     @default("N/A")
   user                User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   contracts           Contract[]
   jobs                Job[]
@@ -65,6 +70,8 @@ model WorkerProfile {
   salaryCurrency         String               @default("EUR")
   totalYearsExperience   Int                  @default(0)
   willingToRelocate      Boolean              @default(false)
+  socialSecurityNumber   String               @default("N/A")
+  fullAddress            String               @default("N/A")
   applications           Application[]
   attendances            Attendance[]
   Certificate            Certificate[]

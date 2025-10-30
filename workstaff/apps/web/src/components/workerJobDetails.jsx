@@ -17,7 +17,8 @@ import {
   Briefcase,
   Building,
   Users,
-  Mail,
+  Globe,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -92,6 +93,14 @@ export default function WorkerJobDetailView() {
       hour: "2-digit",
       minute: "2-digit",
     });
+  };
+
+  const handleWebsiteClick = (website) => {
+    let url = website;
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+      url = "https://" + url;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   if (loading) {
@@ -246,6 +255,34 @@ export default function WorkerJobDetailView() {
                   </div>
                 </div>
               </div>
+              {job.company.description && (
+                <>
+                  <Separator />
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">
+                      Sobre la empresa
+                    </h4>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">
+                      {job.company.description}
+                    </p>
+                  </div>
+                </>
+              )}
+
+              {job.company.website && (
+                <>
+                  <Separator />
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => handleWebsiteClick(job.company.website)}
+                  >
+                    <Globe className="h-4 w-4 mr-2" />
+                    Visitar sitio web
+                    <ExternalLink className="h-3 w-3 ml-2" />
+                  </Button>
+                </>
+              )}
             </CardContent>
           </Card>
 
